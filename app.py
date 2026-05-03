@@ -40,11 +40,14 @@ footer { visibility: hidden; }
 [data-testid="stSidebar"] * { color: #cbd5e1 !important; }
 [data-testid="stSidebar"] hr { border-color: #334155 !important; }
 
-/* ── Nav: hide the radio dot circles ── */
-[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] { display: none !important; }
+/* ── Nav: hide the widget label ("Navigation", "Select Run") but not options ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] label:not([data-baseweb="radio"]) { display: none !important; }
 
-/* ── Nav: style each label as a nav item ── */
-[data-testid="stSidebar"] [data-testid="stRadio"] label {
+/* ── Nav: hide only the radio circle visual inside each option ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] > div:first-child { display: none !important; }
+
+/* ── Nav: style each option (the label with data-baseweb="radio") as a nav item ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"] {
     display: flex !important;
     align-items: center !important;
     width: 100% !important;
@@ -61,15 +64,15 @@ footer { visibility: hidden; }
 }
 
 /* ── Nav: hover state ── */
-[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:hover {
     background: rgba(255,255,255,0.07) !important;
     color: #e2e8f0 !important;
     border-left-color: rgba(59,130,246,0.5) !important;
     transform: translateX(3px) !important;
 }
 
-/* ── Nav: active/selected state (uses :has to detect checked radio input) ── */
-[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
+/* ── Nav: active/selected state ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] label[data-baseweb="radio"]:has(input:checked) {
     background: rgba(59,130,246,0.18) !important;
     color: #93c5fd !important;
     border-left-color: #3b82f6 !important;
@@ -77,36 +80,12 @@ footer { visibility: hidden; }
     transform: translateX(3px) !important;
 }
 
-/* ── Run selector ── */
-[data-testid="stSidebar"] [data-testid="stSelectbox"] > div {
-    background: rgba(255,255,255,0.05) !important;
-    border: 1px solid #334155 !important;
-    border-radius: 8px !important;
+/* ── Run list: smaller text for the date+return items ── */
+[data-testid="stSidebar"] .run-radio [data-testid="stRadio"] label[data-baseweb="radio"] {
+    font-size: 0.8rem !important;
+    padding: 0.4rem 0.9rem !important;
+    font-family: "SF Mono", "Fira Code", monospace !important;
 }
-
-/* ── Run cards ── */
-.run-card {
-    background: rgba(255,255,255,0.05);
-    border: 1px solid #334155;
-    border-radius: 8px;
-    padding: 0.6rem 0.75rem;
-    margin-bottom: 0.4rem;
-    cursor: pointer;
-    transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
-}
-.run-card:hover {
-    background: rgba(255,255,255,0.09);
-    border-color: #3b82f6;
-    transform: translateX(2px);
-}
-.run-card.active {
-    background: rgba(59,130,246,0.15);
-    border-color: #3b82f6;
-    border-left-width: 3px;
-}
-.run-card-date { font-size: 0.8rem; font-weight: 600; color: #e2e8f0; }
-.run-card-id   { font-size: 0.68rem; color: #64748b; font-family: monospace; margin-top: 1px; }
-.run-card-nav  { font-size: 0.78rem; font-weight: 600; margin-top: 3px; }
 
 
 /* ── Metric cards ── */
@@ -284,6 +263,20 @@ def run_label(run_id: str) -> str:
     dt = parse_run_datetime(run_id)
     return dt.strftime("%b %d, %Y  %H:%M") if dt else run_id
 
+def run_list_label(run_id: str) -> str:
+    """Format for the run list: 'May 03  18:27   +16.9%'"""
+    dt = parse_run_datetime(run_id)
+    date_str = dt.strftime("%b %d  %H:%M") if dt else run_id[-8:]
+    try:
+        h = load_portfolio_history(run_id)
+        if not h.empty and len(h) >= 2:
+            ret = h["nav"].iloc[-1] / h["nav"].iloc[0] - 1
+            sign = "+" if ret >= 0 else ""
+            return f"{date_str}   {sign}{ret:.1%}"
+    except Exception:
+        pass
+    return date_str
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
 if "selected_run" not in st.session_state:
@@ -324,64 +317,53 @@ with st.sidebar:
         if st.session_state.selected_run not in run_ids:
             st.session_state.selected_run = run_ids[0]
 
-        # Compact run selector with formatted timestamps
+        # Section label
         st.markdown("""
-        <div style='display:flex;align-items:center;gap:0.4rem;margin-bottom:0.35rem;'>
-            <span style='font-size:0.7rem;font-weight:700;text-transform:uppercase;
-                         letter-spacing:0.08em;color:#64748b;'>Active Run</span>
-            <span title='Each run is one full backtest execution. The system fetches
-market data, runs all 7 agents, holds the council debate, and stores
-portfolio snapshots. Select a run to explore its decisions.'
-                  style='font-size:0.75rem;color:#475569;cursor:help;'>ℹ️</span>
+        <div style='font-size:0.7rem;font-weight:700;text-transform:uppercase;
+                     letter-spacing:0.08em;color:#64748b;margin-bottom:0.2rem;'>
+            Recent Runs
+        </div>
+        <div style='font-size:0.68rem;color:#475569;margin-bottom:0.4rem;'>
+            Select a run to explore its decisions
         </div>
         """, unsafe_allow_html=True)
 
-        idx = run_ids.index(st.session_state.selected_run)
-        chosen = st.selectbox(
-            "Active Run",
-            options=run_ids,
-            index=idx,
-            format_func=run_label,
-            label_visibility="collapsed",
-            help="Select a backtest run to explore its portfolio decisions and agent reasoning.",
+        # Build label→id mapping (labels must be unique; append short id if needed)
+        shown = run_ids[:10]
+        labels = []
+        label_to_id = {}
+        for rid in shown:
+            lbl = run_list_label(rid)
+            # make unique if duplicate
+            orig = lbl
+            n = 1
+            while lbl in label_to_id:
+                lbl = f"{orig} ({n})"
+                n += 1
+            labels.append(lbl)
+            label_to_id[lbl] = rid
+
+        # Find current index
+        current_label = next(
+            (lbl for lbl, rid in label_to_id.items() if rid == st.session_state.selected_run),
+            labels[0],
         )
+        cur_idx = labels.index(current_label)
+
+        # Scrollable run list styled the same as nav items
+        st.markdown('<div class="run-radio">', unsafe_allow_html=True)
+        chosen_label = st.radio(
+            "Select Run",
+            options=labels,
+            index=cur_idx,
+            label_visibility="collapsed",
+        )
+        st.markdown('</div>', unsafe_allow_html=True)
+
+        chosen = label_to_id[chosen_label]
         if chosen != st.session_state.selected_run:
             st.session_state.selected_run = chosen
             st.rerun()
-
-        # Mini stats card for the selected run
-        nav_str = ret_str = ""
-        ret_color = "#94a3b8"
-        try:
-            h = load_portfolio_history(chosen)
-            if not h.empty and len(h) >= 2:
-                ret = h["nav"].iloc[-1] / h["nav"].iloc[0] - 1
-                nav_str = f"${h['nav'].iloc[-1]:,.0f}"
-                ret_str = f"{ret:+.1%}"
-                ret_color = "#10b981" if ret >= 0 else "#ef4444"
-        except Exception:
-            pass
-
-        dt = parse_run_datetime(chosen)
-        ts_str = dt.strftime("%b %d, %Y  %H:%M UTC") if dt else chosen
-        stats_html = (
-            f'<div style="font-size:0.72rem;color:#94a3b8;">{nav_str}</div>'
-            f'<div style="font-size:0.72rem;font-weight:700;color:{ret_color};">{ret_str}</div>'
-        ) if nav_str else ""
-
-        st.markdown(f"""
-        <div style="background:rgba(59,130,246,0.12);border:1px solid #3b82f6;
-                    border-left-width:3px;border-radius:8px;padding:0.5rem 0.75rem;
-                    margin-top:0.4rem;display:flex;justify-content:space-between;align-items:center;">
-            <div>
-                <div style="font-size:0.75rem;font-weight:600;color:#e2e8f0;">{ts_str}</div>
-                <div style="font-size:0.65rem;color:#64748b;font-family:monospace;">
-                    #{chosen[-6:]}
-                </div>
-            </div>
-            <div style="text-align:right;">{stats_html}</div>
-        </div>
-        """, unsafe_allow_html=True)
 
         selected_run = chosen
 
