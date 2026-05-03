@@ -17,7 +17,7 @@ START
                                               Contrarian (Claude)
                                                     |
                                                     v
-                                              Synthesizer (Llama 70B)
+                                              Synthesizer (DeepSeek-V3)
                                                 /       \
                                       (low conviction)  (consensus)
                                            |                |
@@ -68,7 +68,7 @@ python scripts/run_ablation.py
 | `OPENAI_API_KEY` | Macro Sentinel, Strategist, Evaluator | Yes (for LLM agents) |
 | `ANTHROPIC_API_KEY` | Narrative Analyst, Contrarian | Yes (for LLM agents) |
 | `GOOGLE_API_KEY` | Sentiment Scout | Yes (for LLM agents) |
-| `TOGETHER_API_KEY` | Synthesizer (Llama 70B) | Yes (for LLM agents) |
+| `DEEPSEEK_API_KEY` | Synthesizer (DeepSeek-V3) | Yes (for LLM agents) |
 | `FRED_API_KEY` | FRED data fetcher | Yes (free at fred.stlouisfed.org) |
 | `NEWSAPI_KEY` | News fetcher | Optional (RSS feeds work without it) |
 | `REDDIT_CLIENT_ID` | Reddit fetcher | Optional |
@@ -123,14 +123,40 @@ streamlit run app.py
 
 ### GitHub Actions (Scheduled Runs)
 
-The repo includes a GitHub Actions workflow (`.github/workflows/weekly_run.yml`) that runs every Friday at 22:00 UTC (after US market close). Add these secrets to your GitHub repo (Settings > Secrets > Actions):
+The workflow lives at `.github/workflows/weekly_run.yml` and has two modes:
 
-- `DATABASE_URL` — Supabase Postgres connection string
-- `FRED_API_KEY` — FRED API key
-- `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `TOGETHER_API_KEY` — LLM API keys (for full multi-agent runs)
-- `NEWSAPI_KEY`, `REDDIT_CLIENT_ID`, `REDDIT_CLIENT_SECRET` — Optional data source keys
+#### Automatic (every Friday at 22:00 UTC)
+Fires after US market close. Runs all three jobs in sequence:
+1. **fetch-data** — pulls latest prices from yfinance and macro data from FRED
+2. **run-backtest** — runs all deterministic baselines, uploads `ablation_results.json` as an artifact
+3. **run-full-system** — runs the complete multi-agent council (all 4 LLMs), stores results in Supabase
 
-You can also trigger a run manually from the Actions tab.
+#### Manual trigger
+Go to **Actions → Weekly Backtest Run → Run workflow**. You get a strategy dropdown:
+
+| Option | What it runs | LLM API calls? |
+|--------|-------------|----------------|
+| `technical_momentum` | RSI/MACD/trend-scoring strategy | No |
+| `sixty_forty` | 60% equities / 40% bonds benchmark | No |
+| `equal_weight` | Equal weight across all 11 instruments | No |
+| `baselines_only` | All three above in one shot | No |
+
+> The manual dropdown only runs deterministic strategies (no API costs). The full multi-agent council with GPT-4o, Claude, Gemini, and DeepSeek only runs on the automatic Friday schedule.
+
+#### Required GitHub Actions secrets
+Add these under **Settings → Secrets and variables → Actions**:
+
+| Secret | Used by |
+|--------|---------|
+| `DATABASE_URL` | All jobs — Supabase connection string |
+| `FRED_API_KEY` | fetch-data job |
+| `OPENAI_API_KEY` | Full system — Macro Sentinel, Strategist, Evaluator |
+| `ANTHROPIC_API_KEY` | Full system — Narrative Analyst, Contrarian |
+| `GOOGLE_API_KEY` | Full system — Sentiment Scout (Gemini) |
+| `DEEPSEEK_API_KEY` | Full system — Synthesizer (DeepSeek-V3) |
+| `NEWSAPI_KEY` | Full system — news article fetcher (optional) |
+| `REDDIT_CLIENT_ID` | Full system — Reddit sentiment (optional) |
+| `REDDIT_CLIENT_SECRET` | Full system — Reddit sentiment (optional) |
 
 ## Project Structure
 
