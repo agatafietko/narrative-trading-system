@@ -411,7 +411,7 @@ def page_architecture():
             {"Agent": "Sentiment Scout", "Model": "Gemini Flash", "Provider": "Google"},
             {"Agent": "Strategist", "Model": "GPT-4o", "Provider": "OpenAI"},
             {"Agent": "Contrarian", "Model": "Claude Sonnet", "Provider": "Anthropic"},
-            {"Agent": "Synthesizer", "Model": "Llama 3.1 70B", "Provider": "Together AI"},
+            {"Agent": "Synthesizer", "Model": "DeepSeek-V3", "Provider": "DeepSeek"},
             {"Agent": "Evaluator", "Model": "GPT-4o", "Provider": "OpenAI"},
         ]
         st.dataframe(pd.DataFrame(models), width="stretch", hide_index=True)

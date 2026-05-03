@@ -97,6 +97,16 @@ class BaseAgent:
                 openai_api_key=os.getenv("TOGETHER_API_KEY"),
                 openai_api_base="https://api.together.xyz/v1",
             )
+        elif self.provider == "deepseek":
+            from langchain_openai import ChatOpenAI
+            import os
+            self._client = ChatOpenAI(
+                model=self.model_name,
+                temperature=self.temperature,
+                max_tokens=self.max_tokens,
+                openai_api_key=os.getenv("DEEPSEEK_API_KEY"),
+                openai_api_base="https://api.deepseek.com",
+            )
         else:
             raise ValueError(f"Unknown provider: {self.provider}")
 
