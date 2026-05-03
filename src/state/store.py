@@ -112,8 +112,17 @@ class DataStore:
             finally:
                 conn.close()
 
+    def _sanitize(self, params: tuple | list) -> tuple:
+        """Convert numpy scalars to Python native types — psycopg2 rejects np.float64 etc."""
+        def _coerce(v):
+            if hasattr(v, "item"):  # numpy scalar
+                return v.item()
+            return v
+        return tuple(_coerce(v) for v in params)
+
     def _execute(self, conn, query: str, params: tuple | list = ()) -> Any:
         """Execute a query, handling backend differences."""
+        params = self._sanitize(params)
         if self.backend == "postgres":
             cur = conn.cursor()
             cur.execute(query, params)
