@@ -151,7 +151,41 @@ def main():
     )
     parser.add_argument("--baselines-only", action="store_true")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument(
+        "--start",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Override backtest start date. Use this to run a short recent window "
+             "instead of the full 2021-2024 academic period.",
+    )
+    parser.add_argument(
+        "--end",
+        default=None,
+        metavar="YYYY-MM-DD",
+        help="Override backtest end date (default: today).",
+    )
+    parser.add_argument(
+        "--weeks",
+        type=int,
+        default=None,
+        metavar="N",
+        help="Shorthand: run only the last N weeks. Sets --start to N weeks ago "
+             "and --end to today. A value of 8 gives ~50 LLM calls (~$1, ~2 min).",
+    )
     args = parser.parse_args()
+
+    # Resolve date overrides
+    from datetime import date, timedelta
+    start_override = args.start
+    end_override = args.end
+    if args.weeks:
+        end_override = end_override or date.today().strftime("%Y-%m-%d")
+        start_override = (
+            datetime.strptime(end_override, "%Y-%m-%d").date()
+            - timedelta(weeks=args.weeks)
+        ).strftime("%Y-%m-%d")
+    if start_override or end_override:
+        print(f"Date override: {start_override or 'config'} → {end_override or 'config'}")
 
     logger = setup_logging("INFO")
     set_global_seed(args.seed)
@@ -189,6 +223,8 @@ def main():
                     store=store,
                     strategy_fn=strategy_fn,
                     run_id=f"ablation_{variant}_{generate_run_id()}",
+                    start_date=start_override,
+                    end_date=end_override,
                 )
                 result = engine.run()
                 all_results[variant] = result.metrics

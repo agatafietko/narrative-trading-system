@@ -64,6 +64,8 @@ class BacktestEngine:
         strategy_fn: Callable[[datetime, dict[str, float], float, DataStore], dict[str, float]],
         run_id: str | None = None,
         seed: int = 42,
+        start_date: str | None = None,
+        end_date: str | None = None,
     ):
         """
         Args:
@@ -72,6 +74,8 @@ class BacktestEngine:
                          and returns target_weights dict.
             run_id: Unique run identifier. Auto-generated if None.
             seed: Random seed for reproducibility.
+            start_date: Override config start date (YYYY-MM-DD).
+            end_date: Override config end date (YYYY-MM-DD).
         """
         self.store = store
         self.strategy_fn = strategy_fn
@@ -80,8 +84,8 @@ class BacktestEngine:
 
         config = load_backtest_config()
         self.initial_capital = config["initial_capital"]
-        self.start_date = config["start_date"]
-        self.end_date = config["end_date"]
+        self.start_date = start_date or config["start_date"]
+        self.end_date = end_date or config["end_date"]
         self.rebalance_day = config["rebalance_day"]
 
     def run(self) -> BacktestResult:

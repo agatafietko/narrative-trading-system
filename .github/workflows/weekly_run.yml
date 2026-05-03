@@ -121,4 +121,7 @@ jobs:
           NEWSAPI_KEY: ${{ secrets.NEWSAPI_KEY }}
           REDDIT_CLIENT_ID: ${{ secrets.REDDIT_CLIENT_ID }}
           REDDIT_CLIENT_SECRET: ${{ secrets.REDDIT_CLIENT_SECRET }}
-        run: python scripts/run_ablation.py --variants full,no_narrative,technical_momentum
+        # --weeks 8 = last 8 Fridays (~50 LLM calls, ~$1, ~2 min)
+        # For the full 2021-2024 academic backtest run locally:
+        #   python scripts/run_ablation.py --variants full
+        run: python scripts/run_ablation.py --variants full,no_narrative,technical_momentum --weeks 8
