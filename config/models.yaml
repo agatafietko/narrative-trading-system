@@ -1,0 +1,57 @@
+# Model assignments per agent
+# Swap these for ablation experiments (e.g., all GPT-4o for homogeneous test)
+
+gatherers:
+  macro_sentinel:
+    provider: openai
+    model: gpt-4o
+    temperature: 0
+    max_tokens: 2000
+
+  narrative_analyst:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    temperature: 0
+    max_tokens: 4000
+
+  sentiment_scout:
+    provider: google
+    model: gemini-1.5-flash
+    temperature: 0
+    max_tokens: 2000
+
+  market_technician:
+    provider: none  # Deterministic, no LLM
+
+council:
+  strategist:
+    provider: openai
+    model: gpt-4o
+    temperature: 0
+    max_tokens: 3000
+
+  contrarian:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    temperature: 0
+    max_tokens: 3000
+
+  synthesizer:
+    provider: together
+    model: meta-llama/Llama-3.1-70B-Instruct-Turbo
+    temperature: 0
+    max_tokens: 3000
+
+feedback:
+  backtest_evaluator:
+    provider: openai
+    model: gpt-4o
+    temperature: 0
+    max_tokens: 2000
+
+# Ablation presets
+ablation_presets:
+  homogeneous_gpt4o:
+    # Override all agents to use GPT-4o
+    default_provider: openai
+    default_model: gpt-4o

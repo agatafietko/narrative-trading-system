@@ -1,0 +1,38 @@
+{
+  "sixty_forty": {
+    "total_return": 0.2628934598628736,
+    "annualized_return": 0.04122416552579211,
+    "annualized_volatility": 0.10645664489117736,
+    "sharpe_ratio": 0.4327195415493263,
+    "sortino_ratio": 0.5174598374109041,
+    "max_drawdown": -0.2699366724251638,
+    "calmar_ratio": 0.17065436184837324,
+    "hit_rate": 0.3585164835164835,
+    "total_costs": 0.0,
+    "num_periods": 1456
+  },
+  "equal_weight": {
+    "total_return": 0.35048921063595606,
+    "annualized_return": 0.053379837428456645,
+    "annualized_volatility": 0.09942428921567505,
+    "sharpe_ratio": 0.5728067036298321,
+    "sortino_ratio": 0.7843523872175837,
+    "max_drawdown": -0.21481876692911964,
+    "calmar_ratio": 0.2651113782119468,
+    "hit_rate": 0.5199175824175825,
+    "total_costs": 0.0,
+    "num_periods": 1456
+  },
+  "random": {
+    "total_return": -0.43778981541803885,
+    "annualized_return": -0.0948652513264342,
+    "annualized_volatility": 0.10121368148937165,
+    "sharpe_ratio": -0.9338723883915993,
+    "sortino_ratio": -1.1885612157358971,
+    "max_drawdown": -0.47894229948856853,
+    "calmar_ratio": -0.19735292241115182,
+    "hit_rate": 0.46222527472527475,
+    "total_costs": 0.0,
+    "num_periods": 1456
+  }
+}

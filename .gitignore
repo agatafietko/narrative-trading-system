@@ -1,0 +1,28 @@
+# Environment
+.env
+.venv/
+venv/
+.streamlit/secrets.toml
+
+# Data (large files, not versioned)
+data/raw/
+data/processed/
+data/db/
+
+# Python
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# Notebooks
+.ipynb_checkpoints/
+
+# OS
+.DS_Store
+Thumbs.db

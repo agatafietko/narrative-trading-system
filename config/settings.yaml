@@ -1,0 +1,72 @@
+# Investment Universe
+universe:
+  SP500:
+    ticker: "SPY"
+    asset_class: equity
+    slippage_bps: 0
+  NASDAQ100:
+    ticker: "QQQ"
+    asset_class: equity
+    slippage_bps: 0
+  RUSSELL2000:
+    ticker: "IWM"
+    asset_class: equity
+    slippage_bps: 5
+  US_10Y:
+    ticker: "TLT"
+    asset_class: fixed_income
+    slippage_bps: 0
+  US_2Y:
+    ticker: "SHY"
+    asset_class: fixed_income
+    slippage_bps: 0
+  GOLD:
+    ticker: "GLD"
+    asset_class: commodity
+    slippage_bps: 0
+  OIL_WTI:
+    ticker: "USO"
+    asset_class: commodity
+    slippage_bps: 5
+  DXY:
+    ticker: "UUP"
+    asset_class: currency
+    slippage_bps: 5
+  VIX:
+    ticker: "VIXY"
+    asset_class: volatility
+    slippage_bps: 5
+  MSCI_EM:
+    ticker: "EEM"
+    asset_class: equity
+    slippage_bps: 5
+  BITCOIN:
+    ticker: "BTC-USD"
+    asset_class: crypto
+    slippage_bps: 5
+
+# Portfolio Constraints
+constraints:
+  max_single_position: 0.25
+  max_equity_concentration: 0.40
+  min_cash_buffer: 0.05
+  max_leverage: 1.0
+  max_turnover_per_rebalance: 0.30
+  min_trade_threshold: 0.005  # Skip rebalances < 0.5%
+
+# Transaction Costs
+costs:
+  round_trip_bps: 30  # 30 bps round-trip (15 bps each way)
+
+# Backtest Parameters
+backtest:
+  initial_capital: 1_000_000
+  start_date: "2021-01-01"
+  end_date: "2024-12-31"
+  rebalance_frequency: "weekly"  # Rebalance every Friday close
+  rebalance_day: 4  # 0=Monday, 4=Friday
+
+# Council Parameters
+council:
+  consensus_threshold: 0.6
+  max_debate_rounds: 2
