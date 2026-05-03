@@ -96,9 +96,9 @@ footer { visibility: hidden; }
     transition: background 0.15s ease, color 0.15s ease,
                 border-color 0.15s ease, transform 0.13s ease !important;
 }
-/* Inactive */
+/* Inactive — text blends into sidebar background until hovered */
 [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] button {
-    background: transparent !important; color: #94a3b8 !important;
+    background: transparent !important; color: #1e293b !important;
 }
 [data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] button:hover {
     background: rgba(255,255,255,0.08) !important; color: #e2e8f0 !important;
