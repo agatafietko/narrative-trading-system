@@ -32,20 +32,95 @@ st.markdown("""
 /* ── Hide default chrome ── */
 #MainMenu, footer, header { visibility: hidden; }
 
-/* ── Sidebar ── */
+/* ── Sidebar background ── */
 [data-testid="stSidebar"] > div:first-child {
     background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
 }
 [data-testid="stSidebar"] * { color: #cbd5e1 !important; }
 [data-testid="stSidebar"] hr { border-color: #334155 !important; }
-[data-testid="stSidebar"] .stRadio label {
-    font-size: 0.9rem !important;
-    padding: 0.3rem 0 !important;
+
+/* ── Nav: hide radio widget label ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] > div:first-child { display: none !important; }
+
+/* ── Nav: hide the radio dot circles ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] { display: none !important; }
+
+/* ── Nav: style each label as a nav item ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] label {
+    display: flex !important;
+    align-items: center !important;
+    width: 100% !important;
+    padding: 0.55rem 0.9rem !important;
+    border-radius: 8px !important;
+    font-size: 0.875rem !important;
+    font-weight: 500 !important;
+    color: #94a3b8 !important;
+    cursor: pointer !important;
+    border-left: 3px solid transparent !important;
+    margin: 1px 0 !important;
+    transition: background 0.18s ease, color 0.18s ease,
+                border-color 0.18s ease, transform 0.15s ease !important;
 }
-[data-testid="stSidebar"] [data-testid="stSelectbox"] > div {
-    background: #1e293b !important;
-    border: 1px solid #334155 !important;
+
+/* ── Nav: hover state ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] label:hover {
+    background: rgba(255,255,255,0.07) !important;
     color: #e2e8f0 !important;
+    border-left-color: rgba(59,130,246,0.5) !important;
+    transform: translateX(3px) !important;
+}
+
+/* ── Nav: active/selected state (uses :has to detect checked radio input) ── */
+[data-testid="stSidebar"] [data-testid="stRadio"] label:has(input:checked) {
+    background: rgba(59,130,246,0.18) !important;
+    color: #93c5fd !important;
+    border-left-color: #3b82f6 !important;
+    font-weight: 600 !important;
+    transform: translateX(3px) !important;
+}
+
+/* ── Run selector ── */
+[data-testid="stSidebar"] [data-testid="stSelectbox"] > div {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid #334155 !important;
+    border-radius: 8px !important;
+}
+
+/* ── Run cards ── */
+.run-card {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid #334155;
+    border-radius: 8px;
+    padding: 0.6rem 0.75rem;
+    margin-bottom: 0.4rem;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, transform 0.12s ease;
+}
+.run-card:hover {
+    background: rgba(255,255,255,0.09);
+    border-color: #3b82f6;
+    transform: translateX(2px);
+}
+.run-card.active {
+    background: rgba(59,130,246,0.15);
+    border-color: #3b82f6;
+    border-left-width: 3px;
+}
+.run-card-date { font-size: 0.8rem; font-weight: 600; color: #e2e8f0; }
+.run-card-id   { font-size: 0.68rem; color: #64748b; font-family: monospace; margin-top: 1px; }
+.run-card-nav  { font-size: 0.78rem; font-weight: 600; margin-top: 3px; }
+
+/* ── Run card select buttons: collapse to zero-height click targets ── */
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"],
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: -0.45rem 0 0.35rem 0 !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+    pointer-events: all !important;
 }
 
 /* ── Metric cards ── */
@@ -208,7 +283,25 @@ def load_ablation_results():
     p = Path("data/ablation_results.json")
     return json.loads(p.read_text()) if p.exists() else None
 
+# ── Sidebar helpers ───────────────────────────────────────────────────────────
+
+def parse_run_datetime(run_id: str):
+    """Parse run_20260503_165514_abc → datetime object."""
+    from datetime import datetime
+    try:
+        parts = run_id.split("_")
+        return datetime.strptime(f"{parts[1]}{parts[2]}", "%Y%m%d%H%M%S")
+    except Exception:
+        return None
+
+def run_label(run_id: str) -> str:
+    dt = parse_run_datetime(run_id)
+    return dt.strftime("%b %d, %Y  %H:%M") if dt else run_id
+
 # ── Sidebar ───────────────────────────────────────────────────────────────────
+
+if "selected_run" not in st.session_state:
+    st.session_state.selected_run = None
 
 with st.sidebar:
     st.markdown("""
@@ -239,16 +332,78 @@ with st.sidebar:
     st.divider()
 
     run_ids = load_run_ids()
+
     if run_ids:
-        selected_run = st.selectbox(
-            "Active Run",
-            run_ids,
-            help="Switch between backtest runs",
-        )
+        # Initialise default selection
+        if st.session_state.selected_run not in run_ids:
+            st.session_state.selected_run = run_ids[0]
+
+        # Header row with info tooltip
+        st.markdown("""
+        <div style='display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;'>
+            <span style='font-size:0.7rem;font-weight:700;text-transform:uppercase;
+                         letter-spacing:0.08em;color:#64748b;'>Active Run</span>
+            <span title='Each run is one full backtest execution. The system fetches data,
+runs all agents, holds the council debate, and stores portfolio
+snapshots. Select a run to explore its decisions in the dashboard.'
+                  style='font-size:0.75rem;color:#475569;cursor:help;'>ℹ️</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Scrollable run card list (max 5 visible)
+        for run_id in run_ids[:8]:
+            dt    = parse_run_datetime(run_id)
+            label = dt.strftime("%b %d, %Y  %H:%M UTC") if dt else run_id
+            short = run_id[-6:]
+            is_active = run_id == st.session_state.selected_run
+
+            # Load quick stats for active run
+            nav_str = ""
+            ret_str = ""
+            ret_color = "#94a3b8"
+            if is_active:
+                try:
+                    h = load_portfolio_history(run_id)
+                    if not h.empty and len(h) >= 2:
+                        ret = h["nav"].iloc[-1] / h["nav"].iloc[0] - 1
+                        nav_str = f"${h['nav'].iloc[-1]:,.0f}"
+                        ret_str = f"{ret:+.1%}"
+                        ret_color = "#10b981" if ret >= 0 else "#ef4444"
+                except Exception:
+                    pass
+
+            active_style = (
+                "background:rgba(59,130,246,0.18);border-color:#3b82f6;border-left-width:3px;"
+                if is_active else ""
+            )
+
+            st.markdown(f"""
+            <div class="run-card" style="{active_style}">
+                <div style='display:flex;justify-content:space-between;align-items:start;'>
+                    <div>
+                        <div class="run-card-date">{label}</div>
+                        <div class="run-card-id">#{short}</div>
+                    </div>
+                    {'<div style="text-align:right;"><div style="font-size:0.75rem;color:#94a3b8;">' + nav_str + '</div>'
+                     + '<div style="font-size:0.75rem;font-weight:700;color:' + ret_color + ';">' + ret_str + '</div></div>'
+                     if nav_str else ''}
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button(f"Select", key=f"run_btn_{run_id}",
+                         use_container_width=True,
+                         type="primary" if is_active else "secondary"):
+                st.session_state.selected_run = run_id
+                st.rerun()
+
+        selected_run = st.session_state.selected_run
+
     else:
         selected_run = None
         st.markdown(
-            "<div style='color:#f87171;font-size:0.8rem;'>No runs found.<br>Trigger a GitHub Actions run.</div>",
+            "<div style='color:#f87171;font-size:0.8rem;padding:0.5rem;'>"
+            "No runs found.<br>Trigger a GitHub Actions run.</div>",
             unsafe_allow_html=True,
         )
 
