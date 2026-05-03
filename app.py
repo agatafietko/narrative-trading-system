@@ -1,11 +1,4 @@
-"""Streamlit dashboard for the Narrative Trading System.
-
-Shows portfolio performance, agent debate logs, current holdings,
-ablation comparisons, and system architecture.
-
-Run locally: streamlit run app.py
-Deploy: Push to GitHub, connect to Streamlit Cloud
-"""
+"""Streamlit dashboard for the Narrative Trading System."""
 
 import json
 import sys
@@ -16,430 +9,788 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-# Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-
 from src.state.store import DataStore
 
-# ---------------------------------------------------------------------------
-# Page config
-# ---------------------------------------------------------------------------
+# ── Page config ───────────────────────────────────────────────────────────────
 
 st.set_page_config(
     page_title="Narrative Trading System",
-    page_icon="📊",
+    page_icon="📈",
     layout="wide",
     initial_sidebar_state="expanded",
 )
 
-# ---------------------------------------------------------------------------
-# Sidebar
-# ---------------------------------------------------------------------------
+# ── CSS ───────────────────────────────────────────────────────────────────────
 
-st.sidebar.title("Narrative Trading System")
-st.sidebar.markdown("Multi-agent narrative-to-portfolio trading")
-st.sidebar.divider()
+st.markdown("""
+<style>
+/* ── Global ── */
+.stApp { background-color: #f0f4f8; }
+.block-container { padding: 2rem 2.5rem 2rem 2.5rem; }
 
-page = st.sidebar.radio(
-    "Navigation",
-    ["Portfolio Performance", "Agent Council", "Trade History",
-     "Ablation Results", "System Architecture"],
+/* ── Hide default chrome ── */
+#MainMenu, footer, header { visibility: hidden; }
+
+/* ── Sidebar ── */
+[data-testid="stSidebar"] > div:first-child {
+    background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+}
+[data-testid="stSidebar"] * { color: #cbd5e1 !important; }
+[data-testid="stSidebar"] hr { border-color: #334155 !important; }
+[data-testid="stSidebar"] .stRadio label {
+    font-size: 0.9rem !important;
+    padding: 0.3rem 0 !important;
+}
+[data-testid="stSidebar"] [data-testid="stSelectbox"] > div {
+    background: #1e293b !important;
+    border: 1px solid #334155 !important;
+    color: #e2e8f0 !important;
+}
+
+/* ── Metric cards ── */
+.metric-card {
+    background: white;
+    border-radius: 12px;
+    padding: 1.25rem 1.5rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    border-top: 3px solid #3b82f6;
+    text-align: center;
+}
+.metric-card.green { border-top-color: #10b981; }
+.metric-card.red   { border-top-color: #ef4444; }
+.metric-card.amber { border-top-color: #f59e0b; }
+.metric-value {
+    font-size: 1.9rem;
+    font-weight: 700;
+    color: #0f172a;
+    line-height: 1.2;
+    margin: 0.25rem 0;
+}
+.metric-value.green { color: #059669; }
+.metric-value.red   { color: #dc2626; }
+.metric-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #64748b;
+}
+
+/* ── Section header ── */
+.section-header {
+    font-size: 1.4rem;
+    font-weight: 700;
+    color: #0f172a;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+/* ── Agent card ── */
+.agent-header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+}
+.agent-badge {
+    display: inline-block;
+    padding: 0.2rem 0.65rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}
+.badge-strategist  { background: #dbeafe; color: #1d4ed8; }
+.badge-contrarian  { background: #fce7f3; color: #9d174d; }
+.badge-synthesizer { background: #d1fae5; color: #065f46; }
+
+/* ── Direction badges ── */
+.dir-long  { background: #d1fae5; color: #065f46; padding: 2px 8px;
+             border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.dir-short { background: #fee2e2; color: #991b1b; padding: 2px 8px;
+             border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+.dir-flat  { background: #f1f5f9; color: #475569; padding: 2px 8px;
+             border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+
+/* ── Conviction bar ── */
+.conviction-bar-bg {
+    background: #e2e8f0; border-radius: 999px;
+    height: 6px; width: 100%; margin-top: 4px;
+}
+.conviction-bar-fill {
+    background: #3b82f6; border-radius: 999px; height: 6px;
+}
+
+/* ── Info box ── */
+.info-box {
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    color: #1e40af;
+    font-size: 0.875rem;
+}
+
+/* ── Architecture node ── */
+.arch-node {
+    background: white;
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    border-left: 4px solid #3b82f6;
+    margin-bottom: 0.75rem;
+}
+.arch-node.gather { border-left-color: #8b5cf6; }
+.arch-node.council { border-left-color: #f59e0b; }
+.arch-node.execute { border-left-color: #10b981; }
+.arch-node.feedback { border-left-color: #ef4444; }
+.arch-title { font-weight: 700; font-size: 0.85rem; color: #0f172a; margin-bottom: 0.2rem; }
+.arch-sub   { font-size: 0.78rem; color: #64748b; }
+
+/* ── Streamlit overrides ── */
+[data-testid="stMetricValue"] { font-size: 1.6rem !important; }
+div[data-testid="stExpander"] {
+    background: white;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    margin-bottom: 0.75rem;
+}
+</style>
+""", unsafe_allow_html=True)
+
+# ── Plotly theme ──────────────────────────────────────────────────────────────
+
+CHART_LAYOUT = dict(
+    template="plotly_white",
+    font=dict(family="Inter, system-ui, sans-serif", size=12, color="#374151"),
+    paper_bgcolor="white",
+    plot_bgcolor="white",
+    margin=dict(l=16, r=16, t=40, b=16),
+    xaxis=dict(showgrid=True, gridcolor="#f1f5f9", zeroline=False),
+    yaxis=dict(showgrid=True, gridcolor="#f1f5f9", zeroline=False),
+    hoverlabel=dict(bgcolor="white", bordercolor="#e2e8f0", font_size=12),
 )
+BLUE    = "#3b82f6"
+GREEN   = "#10b981"
+RED     = "#ef4444"
+AMBER   = "#f59e0b"
+PURPLE  = "#8b5cf6"
+PALETTE = [BLUE, GREEN, AMBER, PURPLE, RED, "#06b6d4", "#ec4899"]
 
-# ---------------------------------------------------------------------------
-# Data loading (cached)
-# ---------------------------------------------------------------------------
+# ── Data loading ──────────────────────────────────────────────────────────────
 
 @st.cache_resource
 def get_store():
     return DataStore()
 
-
 @st.cache_data(ttl=300)
 def load_run_ids():
-    store = get_store()
-    return store.get_all_run_ids()
-
+    return get_store().get_all_run_ids()
 
 @st.cache_data(ttl=300)
-def load_portfolio_history(run_id: str):
-    store = get_store()
-    return store.get_portfolio_history(run_id)
-
+def load_portfolio_history(run_id):
+    return get_store().get_portfolio_history(run_id)
 
 @st.cache_data(ttl=300)
-def load_council_votes(run_id: str):
-    store = get_store()
-    return store.get_council_votes_for_run(run_id)
-
+def load_council_votes(run_id):
+    return get_store().get_council_votes_for_run(run_id)
 
 @st.cache_data(ttl=300)
-def load_trade_orders(run_id: str):
-    store = get_store()
-    return store.get_trade_orders_for_run(run_id)
-
+def load_trade_orders(run_id):
+    return get_store().get_trade_orders_for_run(run_id)
 
 @st.cache_data(ttl=300)
 def load_ablation_results():
-    ablation_path = Path("data/ablation_results.json")
-    if ablation_path.exists():
-        with open(ablation_path) as f:
-            return json.load(f)
-    return None
+    p = Path("data/ablation_results.json")
+    return json.loads(p.read_text()) if p.exists() else None
 
+# ── Sidebar ───────────────────────────────────────────────────────────────────
 
-# ---------------------------------------------------------------------------
-# Run selector
-# ---------------------------------------------------------------------------
+with st.sidebar:
+    st.markdown("""
+    <div style='padding: 1rem 0 0.5rem 0;'>
+        <div style='font-size:1.35rem; font-weight:800; color:#f8fafc; letter-spacing:-0.02em;'>
+            📈 NarrativeTrader
+        </div>
+        <div style='font-size:0.75rem; color:#94a3b8; margin-top:0.2rem;'>
+            Multi-Agent Portfolio System
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.divider()
 
-def run_selector():
+    page = st.radio(
+        "Navigation",
+        options=[
+            "🏠  Overview",
+            "📊  Portfolio Performance",
+            "🤖  Agent Council",
+            "📋  Trade History",
+            "🔬  Ablation Results",
+            "🏗️  Architecture",
+        ],
+        label_visibility="collapsed",
+    )
+
+    st.divider()
+
     run_ids = load_run_ids()
-    if not run_ids:
-        st.warning("No backtest runs found. Run a backtest first.")
-        st.code("python scripts/run_backtest.py --strategy technical_momentum")
-        return None
-    selected = st.sidebar.selectbox("Select Run", run_ids)
-    return selected
+    if run_ids:
+        selected_run = st.selectbox(
+            "Active Run",
+            run_ids,
+            help="Switch between backtest runs",
+        )
+    else:
+        selected_run = None
+        st.markdown(
+            "<div style='color:#f87171;font-size:0.8rem;'>No runs found.<br>Trigger a GitHub Actions run.</div>",
+            unsafe_allow_html=True,
+        )
+
+    st.divider()
+    st.markdown(
+        "<div style='font-size:0.7rem; color:#475569;'>Data refreshes every 5 min<br>"
+        "<a href='https://github.com/agatafietko/narrative-trading-system' "
+        "style='color:#60a5fa;'>View on GitHub ↗</a></div>",
+        unsafe_allow_html=True,
+    )
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+
+def metric_card(label, value, color="blue"):
+    st.markdown(f"""
+    <div class="metric-card {color if color != 'blue' else ''}">
+        <div class="metric-label">{label}</div>
+        <div class="metric-value {color if color in ('green','red') else ''}">{value}</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+def section(title):
+    st.markdown(f'<div class="section-header">{title}</div>', unsafe_allow_html=True)
+
+def no_data(msg, cmd=None):
+    html = f'<div class="info-box">{msg}'
+    if cmd:
+        html += f'<br><br><code style="background:#dbeafe;padding:2px 6px;border-radius:4px;">{cmd}</code>'
+    html += "</div>"
+    st.markdown(html, unsafe_allow_html=True)
+
+# ── Page: Overview ────────────────────────────────────────────────────────────
+
+def page_overview():
+    st.markdown("""
+    <div style='margin-bottom:2rem;'>
+        <h1 style='font-size:2rem;font-weight:800;color:#0f172a;margin:0;'>
+            Narrative-to-Portfolio Trading System
+        </h1>
+        <p style='color:#64748b;margin-top:0.4rem;font-size:1rem;'>
+            A multi-agent LLM system that reads market narratives and turns them into portfolio decisions.
+        </p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Top-level stats from all runs
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: metric_card("Total Runs", str(len(run_ids)) if run_ids else "0")
+    with c2: metric_card("Instruments", "11")
+    with c3: metric_card("LLM Agents", "7")
+    with c4: metric_card("Backtest Period", "2021–2024")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_l, col_r = st.columns([3, 2])
+
+    with col_l:
+        section("System Pipeline")
+        stages = [
+            ("gather",   "📡 Information Gathering",  "Macro Sentinel · Market Technician · Narrative Analyst · Sentiment Scout"),
+            ("council",  "⚖️  Council Debate",         "Strategist (GPT-4o) → Contrarian (Claude) → Synthesizer (DeepSeek) — Delphi protocol, max 2 rounds"),
+            ("execute",  "🚀 Execution",               "Portfolio Constructor applies constraints · Order Manager applies 30 bps cost model"),
+            ("feedback", "🔁 Feedback Loop",           "Backtest Evaluator scores each agent · injects feedback into future prompts"),
+        ]
+        for cls, title, sub in stages:
+            st.markdown(f"""
+            <div class="arch-node {cls}">
+                <div class="arch-title">{title}</div>
+                <div class="arch-sub">{sub}</div>
+            </div>
+            """, unsafe_allow_html=True)
+
+    with col_r:
+        section("Model Assignments")
+        models_df = pd.DataFrame([
+            {"Agent": "Macro Sentinel",    "Model": "GPT-4o",          "Role": "Gatherer"},
+            {"Agent": "Market Technician", "Model": "Deterministic",   "Role": "Gatherer"},
+            {"Agent": "Narrative Analyst", "Model": "Claude Sonnet",   "Role": "Gatherer"},
+            {"Agent": "Sentiment Scout",   "Model": "Gemini Flash",    "Role": "Gatherer"},
+            {"Agent": "Strategist",        "Model": "GPT-4o",          "Role": "Council"},
+            {"Agent": "Contrarian",        "Model": "Claude Sonnet",   "Role": "Council"},
+            {"Agent": "Synthesizer",       "Model": "DeepSeek-V3",     "Role": "Council"},
+            {"Agent": "Evaluator",         "Model": "GPT-4o",          "Role": "Feedback"},
+        ])
+        st.dataframe(models_df, hide_index=True, use_container_width=True,
+                     column_config={"Role": st.column_config.TextColumn(width="small")})
+
+        section("Investment Universe")
+        universe_df = pd.DataFrame([
+            {"Asset": "S&P 500",    "Ticker": "SPY",     "Class": "Equity"},
+            {"Asset": "Nasdaq 100", "Ticker": "QQQ",     "Class": "Equity"},
+            {"Asset": "Russell 2000","Ticker": "IWM",    "Class": "Equity"},
+            {"Asset": "MSCI EM",    "Ticker": "EEM",     "Class": "Equity"},
+            {"Asset": "US 10Y",     "Ticker": "TLT",     "Class": "Bond"},
+            {"Asset": "US 2Y",      "Ticker": "SHY",     "Class": "Bond"},
+            {"Asset": "Gold",       "Ticker": "GLD",     "Class": "Commodity"},
+            {"Asset": "Oil WTI",    "Ticker": "USO",     "Class": "Commodity"},
+            {"Asset": "DXY",        "Ticker": "UUP",     "Class": "FX"},
+            {"Asset": "VIX",        "Ticker": "VIXY",    "Class": "Vol"},
+            {"Asset": "Bitcoin",    "Ticker": "BTC-USD", "Class": "Crypto"},
+        ])
+        st.dataframe(universe_df, hide_index=True, use_container_width=True,
+                     column_config={"Class": st.column_config.TextColumn(width="small")})
 
 
-# ---------------------------------------------------------------------------
-# Page: Portfolio Performance
-# ---------------------------------------------------------------------------
+# ── Page: Portfolio Performance ───────────────────────────────────────────────
 
 def page_portfolio():
-    st.header("Portfolio Performance")
+    st.markdown("<h2 style='color:#0f172a;font-weight:800;margin-bottom:1.5rem;'>Portfolio Performance</h2>",
+                unsafe_allow_html=True)
 
-    run_id = run_selector()
-    if not run_id:
+    if not selected_run:
+        no_data("No runs found. Trigger a GitHub Actions run first.")
         return
 
-    history = load_portfolio_history(run_id)
+    history = load_portfolio_history(selected_run)
     if history.empty:
-        st.info("No portfolio data for this run.")
+        no_data("No portfolio data for this run.")
         return
+
+    # Metrics row
+    total_ret = history["nav"].iloc[-1] / history["nav"].iloc[0] - 1
+    returns   = history["nav"].pct_change().dropna()
+    sharpe    = (returns.mean() / returns.std() * (252 ** 0.5)) if returns.std() > 0 else 0
+    peak      = history["nav"].cummax()
+    max_dd    = ((history["nav"] - peak) / peak).min()
+    total_cost = history["total_cost_incurred"].iloc[-1]
+
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: metric_card("Total Return",  f"{total_ret:+.2%}", "green" if total_ret >= 0 else "red")
+    with c2: metric_card("Sharpe Ratio",  f"{sharpe:.2f}",     "green" if sharpe >= 1 else "amber")
+    with c3: metric_card("Max Drawdown",  f"{max_dd:.2%}",     "red")
+    with c4: metric_card("Total Costs",   f"${total_cost:,.0f}")
+
+    st.markdown("<br>", unsafe_allow_html=True)
 
     # NAV chart
-    st.subheader("Net Asset Value")
+    section("Net Asset Value")
     fig = go.Figure()
+    # Shaded area under the line
     fig.add_trace(go.Scatter(
         x=history["as_of"], y=history["nav"],
+        fill="tozeroy", fillcolor="rgba(59,130,246,0.07)",
         mode="lines", name="Portfolio NAV",
-        line=dict(color="#2563eb", width=2),
+        line=dict(color=BLUE, width=2.5),
+        hovertemplate="<b>%{x|%b %d, %Y}</b><br>NAV: $%{y:,.0f}<extra></extra>",
     ))
-    fig.add_hline(y=1_000_000, line_dash="dash", line_color="gray",
-                  annotation_text="Initial Capital")
-    fig.update_layout(
-        yaxis_title="NAV ($)",
-        xaxis_title="Date",
-        template="plotly_white",
-        height=400,
+    fig.add_hline(
+        y=1_000_000, line_dash="dot", line_color="#94a3b8", line_width=1.5,
+        annotation_text="Initial Capital  $1M", annotation_position="bottom right",
+        annotation_font_color="#94a3b8",
     )
+    fig.update_layout(**CHART_LAYOUT, height=380,
+                      yaxis_title="NAV ($)", xaxis_title="")
+    fig.update_yaxes(tickprefix="$", tickformat=",.0f")
     st.plotly_chart(fig, width="stretch")
 
-    # Key metrics
-    col1, col2, col3, col4 = st.columns(4)
-    if len(history) >= 2:
-        total_ret = (history["nav"].iloc[-1] / history["nav"].iloc[0] - 1)
-        returns = history["nav"].pct_change().dropna()
-        sharpe = (returns.mean() / returns.std() * (252 ** 0.5)) if returns.std() > 0 else 0
-        peak = history["nav"].cummax()
-        max_dd = ((history["nav"] - peak) / peak).min()
-        total_cost = history["total_cost_incurred"].iloc[-1]
+    # Holdings + table
+    latest      = history.iloc[-1]
+    weights_raw = latest["weights"]
+    weights     = json.loads(weights_raw) if isinstance(weights_raw, str) else weights_raw
 
-        col1.metric("Total Return", f"{total_ret:.2%}")
-        col2.metric("Sharpe Ratio", f"{sharpe:.2f}")
-        col3.metric("Max Drawdown", f"{max_dd:.2%}")
-        col4.metric("Total Costs", f"${total_cost:,.0f}")
+    if weights:
+        cash = float(latest.get("cash_weight") or 0)
+        display_w = {**weights}
+        if cash >= 0.005:
+            display_w["CASH"] = cash
+        display_w = {k: v for k, v in display_w.items() if abs(v) >= 0.005}
 
-    # Current holdings
-    st.subheader("Current Holdings")
-    if not history.empty:
-        latest = history.iloc[-1]
-        weights_raw = latest["weights"]
-        weights = json.loads(weights_raw) if isinstance(weights_raw, str) else weights_raw
+        col_pie, col_tbl = st.columns([1, 1])
 
-        if weights:
-            # Add cash
-            cash = latest.get("cash_weight", 1 - sum(abs(v) for v in weights.values()))
-            display_weights = {**weights, "CASH": cash}
-
-            # Filter out near-zero weights
-            display_weights = {k: v for k, v in display_weights.items() if abs(v) >= 0.005}
-
-            fig_pie = px.pie(
-                values=[abs(v) for v in display_weights.values()],
-                names=list(display_weights.keys()),
-                title=f"Portfolio Allocation (as of {latest['as_of'].date()})",
-                hole=0.4,
+        with col_pie:
+            section("Current Allocation")
+            fig_pie = go.Figure(go.Pie(
+                labels=list(display_w.keys()),
+                values=[abs(v) for v in display_w.values()],
+                hole=0.5,
+                marker_colors=PALETTE,
+                textinfo="label+percent",
+                hovertemplate="<b>%{label}</b><br>%{percent}<extra></extra>",
+            ))
+            fig_pie.update_layout(
+                **{k: v for k, v in CHART_LAYOUT.items() if k != "xaxis" and k != "yaxis"},
+                height=320,
+                showlegend=False,
+                annotations=[dict(text=f"<b>{latest['as_of']}</b>" if isinstance(latest['as_of'], str)
+                                  else f"<b>{latest['as_of'].strftime('%b %d')}</b>",
+                                  x=0.5, y=0.5, font_size=12, showarrow=False,
+                                  font_color="#64748b")],
             )
-            fig_pie.update_layout(height=400)
             st.plotly_chart(fig_pie, width="stretch")
 
-            # Table
-            wdf = pd.DataFrame([
-                {"Instrument": k, "Weight": f"{v:.2%}", "Direction": "Long" if v > 0 else "Short" if v < 0 else "Flat"}
-                for k, v in sorted(display_weights.items(), key=lambda x: -abs(x[1]))
+        with col_tbl:
+            section("Holdings Detail")
+            rows = sorted(display_w.items(), key=lambda x: -abs(x[1]))
+            tdf = pd.DataFrame([
+                {"Instrument": k,
+                 "Weight": f"{v:.1%}",
+                 "$ Value": f"${abs(v) * float(latest['nav']):,.0f}",
+                 "Side": "Long" if v > 0 else "Short" if v < 0 else "Cash"}
+                for k, v in rows
             ])
-            st.dataframe(wdf, width="stretch", hide_index=True)
+            st.dataframe(tdf, hide_index=True, use_container_width=True,
+                         column_config={"Side": st.column_config.TextColumn(width="small")})
 
 
-# ---------------------------------------------------------------------------
-# Page: Agent Council
-# ---------------------------------------------------------------------------
+# ── Page: Agent Council ───────────────────────────────────────────────────────
 
 def page_council():
-    st.header("Agent Council Debates")
+    st.markdown("<h2 style='color:#0f172a;font-weight:800;margin-bottom:1.5rem;'>Agent Council Debates</h2>",
+                unsafe_allow_html=True)
 
-    run_id = run_selector()
-    if not run_id:
+    if not selected_run:
+        no_data("No runs found.")
         return
 
-    votes = load_council_votes(run_id)
+    votes = load_council_votes(selected_run)
     if not votes:
-        st.info("No council votes recorded for this run. Run the full multi-agent backtest to see debates.")
-        st.code("python scripts/run_ablation.py --variants full")
+        no_data(
+            "No council votes in this run. The full multi-agent system hasn't run yet.",
+            "Actions → Daily Backtest Run → Run workflow → full_system"
+        )
         return
 
-    # Group by date
-    dates = sorted(set(v["as_of"] for v in votes))
-
-    selected_date = st.selectbox("Select debate date", dates)
+    dates = sorted(set(v["as_of"] for v in votes), reverse=True)
+    selected_date = st.selectbox("Debate date", dates,
+                                 format_func=lambda d: f"Week of {d[:10]}")
     date_votes = [v for v in votes if v["as_of"] == selected_date]
+
+    # Conviction summary bar
+    if date_votes:
+        convictions = {v["agent_name"]: v.get("overall_conviction", 0) for v in date_votes}
+        avg_conviction = sum(convictions.values()) / len(convictions)
+        consensus = avg_conviction >= 0.6
+
+        col_a, col_b, col_c = st.columns([1, 1, 2])
+        with col_a:
+            metric_card("Avg Conviction", f"{avg_conviction:.0%}",
+                        "green" if consensus else "amber")
+        with col_b:
+            metric_card("Consensus", "Reached ✓" if consensus else "Debated ↻",
+                        "green" if consensus else "amber")
+        with col_c:
+            metric_card("Agents", f"{len(date_votes)} / 3 voted")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    agent_cfg = {
+        "strategist":  ("🎯", "Strategist",  "badge-strategist",  "Proposes investment thesis based on all signals"),
+        "contrarian":  ("⚡", "Contrarian",  "badge-contrarian",  "Challenges the thesis — finds crowded trades and missed risks"),
+        "synthesizer": ("⚖️", "Synthesizer", "badge-synthesizer", "Mediates and produces the final portfolio decision"),
+    }
 
     for vote in date_votes:
         agent = vote["agent_name"]
         conviction = vote.get("overall_conviction", 0)
-        model = vote.get("model_used", "unknown")
+        model = vote.get("model_used", "unknown").split("/")[-1]
+        icon, label, badge_cls, role_desc = agent_cfg.get(
+            agent, ("🤖", agent.title(), "badge-strategist", ""))
 
-        icon = {"strategist": "🎯", "contrarian": "⚡", "synthesizer": "⚖️"}.get(agent, "🤖")
+        bar_w = int(conviction * 100)
+        bar_color = GREEN if conviction >= 0.6 else AMBER if conviction >= 0.4 else RED
 
-        with st.expander(f"{icon} {agent.title()} — Conviction: {conviction:.0%} — {model}", expanded=True):
-            summary = vote.get("summary", "No summary")
-            st.markdown(f"**Thesis:** {summary}")
+        with st.expander(f"{icon}  {label}  ·  {conviction:.0%} conviction  ·  {model}", expanded=True):
+            hcol, _ = st.columns([3, 1])
+            with hcol:
+                st.markdown(f"""
+                <span class="agent-badge {badge_cls}">{label}</span>
+                <span style="font-size:0.8rem;color:#64748b;margin-left:0.5rem;">{role_desc}</span>
+                <div class="conviction-bar-bg">
+                    <div class="conviction-bar-fill" style="width:{bar_w}%;background:{bar_color};"></div>
+                </div>
+                """, unsafe_allow_html=True)
+
+            summary = vote.get("summary", "")
+            if summary:
+                st.markdown(f"> {summary}")
 
             views_raw = vote.get("views", "[]")
             views = json.loads(views_raw) if isinstance(views_raw, str) else views_raw
-
             if views:
                 vdf = pd.DataFrame(views)
-                if "instrument" in vdf.columns:
-                    display_cols = ["instrument", "direction", "conviction", "target_weight"]
-                    available = [c for c in display_cols if c in vdf.columns]
-                    st.dataframe(vdf[available], width="stretch", hide_index=True)
+                display_cols = [c for c in ["instrument", "direction", "conviction", "target_weight"] if c in vdf.columns]
+                if display_cols:
+                    st.dataframe(vdf[display_cols], hide_index=True, use_container_width=True)
 
 
-# ---------------------------------------------------------------------------
-# Page: Trade History
-# ---------------------------------------------------------------------------
+# ── Page: Trade History ───────────────────────────────────────────────────────
 
 def page_trades():
-    st.header("Trade History")
+    st.markdown("<h2 style='color:#0f172a;font-weight:800;margin-bottom:1.5rem;'>Trade History</h2>",
+                unsafe_allow_html=True)
 
-    run_id = run_selector()
-    if not run_id:
+    if not selected_run:
+        no_data("No runs found.")
         return
 
-    orders = load_trade_orders(run_id)
+    orders = load_trade_orders(selected_run)
     if orders.empty:
-        st.info("No trades for this run.")
+        no_data("No trades for this run.")
         return
 
-    st.metric("Total Trades", len(orders))
-    st.metric("Total Costs", f"${orders['cost'].sum():,.0f}")
-
-    # Trades over time
     orders["as_of"] = pd.to_datetime(orders["as_of"])
-    trades_by_date = orders.groupby("as_of").agg(
-        num_trades=("instrument", "count"),
-        total_cost=("cost", "sum"),
-    ).reset_index()
+    buys  = orders[orders["direction"] == "buy"]
+    sells = orders[orders["direction"] == "sell"]
 
-    fig = px.bar(trades_by_date, x="as_of", y="num_trades",
-                 title="Trades per Rebalance",
-                 labels={"as_of": "Date", "num_trades": "Number of Trades"})
-    fig.update_layout(template="plotly_white", height=300)
-    st.plotly_chart(fig, width="stretch")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: metric_card("Total Trades",   str(len(orders)))
+    with c2: metric_card("Buy Orders",     str(len(buys)),  "green")
+    with c3: metric_card("Sell Orders",    str(len(sells)), "red")
+    with c4: metric_card("Total Costs",    f"${orders['cost'].sum():,.0f}", "amber")
 
-    # Full trade log
-    st.subheader("Trade Log")
-    st.dataframe(orders, width="stretch", hide_index=True)
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_l, col_r = st.columns([3, 2])
+
+    with col_l:
+        section("Trade Activity Over Time")
+        by_date = orders.groupby(["as_of", "direction"]).size().reset_index(name="count")
+        fig = px.bar(by_date, x="as_of", y="count", color="direction",
+                     color_discrete_map={"buy": GREEN, "sell": RED},
+                     labels={"as_of": "", "count": "Number of Trades", "direction": "Side"},
+                     barmode="group")
+        fig.update_layout(**CHART_LAYOUT, height=320, legend=dict(orientation="h", y=1.1))
+        fig.update_traces(marker_line_width=0)
+        st.plotly_chart(fig, width="stretch")
+
+    with col_r:
+        section("Cost Breakdown by Instrument")
+        cost_by_inst = orders.groupby("instrument")["cost"].sum().sort_values(ascending=True)
+        fig2 = go.Figure(go.Bar(
+            x=cost_by_inst.values, y=cost_by_inst.index,
+            orientation="h",
+            marker_color=AMBER, marker_line_width=0,
+            hovertemplate="<b>%{y}</b><br>Cost: $%{x:,.0f}<extra></extra>",
+        ))
+        fig2.update_layout(**CHART_LAYOUT, height=320,
+                           xaxis_title="Total Cost ($)", yaxis_title="")
+        fig2.update_xaxes(tickprefix="$", tickformat=",.0f")
+        st.plotly_chart(fig2, width="stretch")
+
+    section("Full Trade Log")
+    display_orders = orders.copy()
+    display_orders["cost"] = display_orders["cost"].apply(lambda x: f"${x:,.2f}")
+    display_orders["dollar_amount"] = display_orders["dollar_amount"].apply(lambda x: f"${abs(x):,.0f}")
+    display_orders["weight_delta"] = display_orders["weight_delta"].apply(lambda x: f"{x:+.2%}")
+    display_orders["as_of"] = display_orders["as_of"].dt.strftime("%Y-%m-%d")
+    st.dataframe(display_orders, hide_index=True, use_container_width=True)
 
 
-# ---------------------------------------------------------------------------
-# Page: Ablation Results
-# ---------------------------------------------------------------------------
+# ── Page: Ablation Results ────────────────────────────────────────────────────
 
 def page_ablation():
-    st.header("Ablation & Baseline Comparison")
+    st.markdown("<h2 style='color:#0f172a;font-weight:800;margin-bottom:1.5rem;'>Ablation & Baseline Comparison</h2>",
+                unsafe_allow_html=True)
 
     results = load_ablation_results()
     if not results:
-        st.info("No ablation results found. Run the ablation experiments first.")
-        st.code("python scripts/run_ablation.py --baselines-only")
+        no_data("No ablation results found. Run the ablation experiments first.",
+                "Actions → Run workflow → baselines_only")
         return
 
-    # Build comparison table
-    metrics_display = {
-        "total_return": ("Total Return", ".2%"),
-        "annualized_return": ("Ann. Return", ".2%"),
-        "annualized_volatility": ("Ann. Volatility", ".2%"),
-        "sharpe_ratio": ("Sharpe Ratio", ".2f"),
-        "sortino_ratio": ("Sortino Ratio", ".2f"),
-        "max_drawdown": ("Max Drawdown", ".2%"),
-        "calmar_ratio": ("Calmar Ratio", ".2f"),
-        "hit_rate": ("Hit Rate", ".2%"),
+    # Strategy name cleanup
+    label_map = {
+        "sixty_forty": "60/40",
+        "equal_weight": "Equal Weight",
+        "technical_momentum": "Tech. Momentum",
+        "random": "Random",
+        "full": "Full System",
+        "no_narrative": "No Narrative",
+        "minimal": "Minimal",
     }
 
+    metrics_cfg = {
+        "total_return":         ("Total Return",     ".1%",  True),
+        "annualized_return":    ("Ann. Return",      ".1%",  True),
+        "annualized_volatility":("Ann. Volatility",  ".1%",  False),
+        "sharpe_ratio":         ("Sharpe Ratio",     ".2f",  True),
+        "sortino_ratio":        ("Sortino Ratio",    ".2f",  True),
+        "max_drawdown":         ("Max Drawdown",     ".1%",  False),
+        "calmar_ratio":         ("Calmar Ratio",     ".2f",  True),
+        "hit_rate":             ("Hit Rate",         ".1%",  True),
+    }
+
+    strategies  = list(results.keys())
+    clean_names = [label_map.get(s, s.replace("_", " ").title()) for s in strategies]
+
+    # Metric cards for Sharpe (the headline stat)
+    section("Sharpe Ratio by Strategy")
+    cols = st.columns(len(strategies))
+    for i, (strat, name) in enumerate(zip(strategies, clean_names)):
+        sr = results[strat].get("sharpe_ratio", 0)
+        with cols[i]:
+            metric_card(name, f"{sr:.2f}", "green" if sr >= 0.5 else "amber" if sr >= 0 else "red")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+    col_l, col_r = st.columns(2)
+
+    with col_l:
+        section("Return vs Volatility")
+        scatter_data = []
+        for strat, name in zip(strategies, clean_names):
+            m = results[strat]
+            scatter_data.append({
+                "Strategy": name,
+                "Ann. Return (%)": m.get("annualized_return", 0) * 100,
+                "Ann. Volatility (%)": m.get("annualized_volatility", 0) * 100,
+                "Sharpe": m.get("sharpe_ratio", 0),
+            })
+        sdf = pd.DataFrame(scatter_data)
+        fig = px.scatter(
+            sdf, x="Ann. Volatility (%)", y="Ann. Return (%)",
+            text="Strategy", size=[abs(r) + 0.1 for r in sdf["Sharpe"]],
+            color="Sharpe", color_continuous_scale=["#ef4444", "#f59e0b", "#10b981"],
+            size_max=35,
+        )
+        fig.update_traces(textposition="top center", marker_line_width=0)
+        fig.update_layout(**CHART_LAYOUT, height=360, coloraxis_showscale=False)
+        st.plotly_chart(fig, width="stretch")
+
+    with col_r:
+        section("Total Return Comparison")
+        ret_data = [(label_map.get(s, s), results[s].get("total_return", 0) * 100) for s in strategies]
+        ret_data.sort(key=lambda x: x[1], reverse=True)
+        fig2 = go.Figure(go.Bar(
+            x=[r[1] for r in ret_data],
+            y=[r[0] for r in ret_data],
+            orientation="h",
+            marker_color=[GREEN if r[1] >= 0 else RED for r in ret_data],
+            marker_line_width=0,
+            text=[f"{r[1]:.1f}%" for r in ret_data],
+            textposition="outside",
+            hovertemplate="<b>%{y}</b><br>Return: %{x:.1f}%<extra></extra>",
+        ))
+        fig2.update_layout(**CHART_LAYOUT, height=360, xaxis_title="Total Return (%)")
+        st.plotly_chart(fig2, width="stretch")
+
+    # Full metrics table
+    section("Full Metrics Table")
     rows = []
-    for metric_key, (label, fmt) in metrics_display.items():
+    for metric_key, (label, fmt, _) in metrics_cfg.items():
         row = {"Metric": label}
-        for variant, metrics in results.items():
-            val = metrics.get(metric_key, 0)
+        for strat, name in zip(strategies, clean_names):
+            val = results[strat].get(metric_key, 0)
             try:
-                row[variant] = f"{val:{fmt}}"
+                row[name] = f"{val:{fmt}}"
             except (ValueError, TypeError):
-                row[variant] = str(val)
+                row[name] = str(val)
         rows.append(row)
-
-    df = pd.DataFrame(rows)
-    st.dataframe(df, width="stretch", hide_index=True)
-
-    # Bar chart comparison
-    st.subheader("Sharpe Ratio Comparison")
-    sharpe_data = {v: m.get("sharpe_ratio", 0) for v, m in results.items()}
-    fig = px.bar(
-        x=list(sharpe_data.keys()),
-        y=list(sharpe_data.values()),
-        labels={"x": "Strategy", "y": "Sharpe Ratio"},
-        color=list(sharpe_data.values()),
-        color_continuous_scale="RdYlGn",
-    )
-    fig.update_layout(template="plotly_white", height=400, showlegend=False)
-    st.plotly_chart(fig, width="stretch")
-
-    # Return comparison
-    st.subheader("Total Return Comparison")
-    return_data = {v: m.get("total_return", 0) * 100 for v, m in results.items()}
-    fig2 = px.bar(
-        x=list(return_data.keys()),
-        y=list(return_data.values()),
-        labels={"x": "Strategy", "y": "Total Return (%)"},
-        color=list(return_data.values()),
-        color_continuous_scale="RdYlGn",
-    )
-    fig2.update_layout(template="plotly_white", height=400, showlegend=False)
-    st.plotly_chart(fig2, width="stretch")
+    st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
 
 
-# ---------------------------------------------------------------------------
-# Page: System Architecture
-# ---------------------------------------------------------------------------
+# ── Page: Architecture ────────────────────────────────────────────────────────
 
 def page_architecture():
-    st.header("System Architecture")
+    st.markdown("<h2 style='color:#0f172a;font-weight:800;margin-bottom:1.5rem;'>System Architecture</h2>",
+                unsafe_allow_html=True)
 
-    st.markdown("""
-    ### Multi-Agent Workflow
+    col_l, col_r = st.columns([3, 2])
 
-    The system uses **4 information gathering agents** feeding into a **3-member council**
-    that debates and produces portfolio decisions via a Delphi-method protocol.
-
-    ```
-    ┌─────────────────────────────────────────────────────┐
-    │                INFORMATION GATHERING                 │
-    │                                                      │
-    │  Macro Sentinel     Market Technician                │
-    │    (GPT-4o)          (Deterministic)                 │
-    │                                                      │
-    │  Narrative Analyst   Sentiment Scout                 │
-    │    (Claude)            (Gemini)                      │
-    └───────────────────────┬─────────────────────────────┘
-                            │
-                            ▼
-    ┌─────────────────────────────────────────────────────┐
-    │                   COUNCIL DEBATE                     │
-    │                                                      │
-    │  1. Strategist (GPT-4o)    → proposes thesis         │
-    │  2. Contrarian (Claude)    → challenges thesis       │
-    │  3. Synthesizer (Llama 70B)→ final decision          │
-    │                                                      │
-    │  Loop if conviction < 0.6 (max 2 rounds)             │
-    └───────────────────────┬─────────────────────────────┘
-                            │
-                            ▼
-    ┌─────────────────────────────────────────────────────┐
-    │                    EXECUTION                         │
-    │                                                      │
-    │  Portfolio Constructor → Order Manager                │
-    │  (constraints, risk)    (cost model, 30bps)          │
-    └───────────────────────┬─────────────────────────────┘
-                            │
-                            ▼
-    ┌─────────────────────────────────────────────────────┐
-    │                    FEEDBACK                           │
-    │                                                      │
-    │  Backtest Evaluator (GPT-4o)                         │
-    │  → scores each agent                                 │
-    │  → injects feedback into future prompts              │
-    └─────────────────────────────────────────────────────┘
-    ```
-    """)
-
-    st.divider()
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.subheader("Investment Universe")
-        universe = {
-            "S&P 500": "SPY", "Nasdaq 100": "QQQ", "Russell 2000": "IWM",
-            "US 10Y": "TLT", "US 2Y": "SHY", "Gold": "GLD",
-            "Oil WTI": "USO", "DXY": "UUP", "VIX": "VIXY",
-            "MSCI EM": "EEM", "Bitcoin": "BTC-USD",
-        }
-        udf = pd.DataFrame([
-            {"Asset": k, "Ticker": v} for k, v in universe.items()
-        ])
-        st.dataframe(udf, width="stretch", hide_index=True)
-
-    with col2:
-        st.subheader("Model Assignments")
-        models = [
-            {"Agent": "Macro Sentinel", "Model": "GPT-4o", "Provider": "OpenAI"},
-            {"Agent": "Market Technician", "Model": "Deterministic", "Provider": "None"},
-            {"Agent": "Narrative Analyst", "Model": "Claude Sonnet", "Provider": "Anthropic"},
-            {"Agent": "Sentiment Scout", "Model": "Gemini Flash", "Provider": "Google"},
-            {"Agent": "Strategist", "Model": "GPT-4o", "Provider": "OpenAI"},
-            {"Agent": "Contrarian", "Model": "Claude Sonnet", "Provider": "Anthropic"},
-            {"Agent": "Synthesizer", "Model": "DeepSeek-V3", "Provider": "DeepSeek"},
-            {"Agent": "Evaluator", "Model": "GPT-4o", "Provider": "OpenAI"},
+    with col_l:
+        section("Agent Pipeline")
+        pipeline = [
+            ("gather",   "📡", "Information Gathering",  [
+                ("Macro Sentinel",    "GPT-4o",        "Reads FRED macro data — rates, inflation, yield curve, DXY"),
+                ("Market Technician", "Deterministic", "Computes RSI, MACD, Bollinger Bands, trend, momentum"),
+                ("Narrative Analyst", "Claude Sonnet", "Extracts dominant narratives from news articles and GDELT"),
+                ("Sentiment Scout",   "Gemini Flash",  "Scores fear/greed from Reddit and social signals"),
+            ]),
+            ("council",  "⚖️",  "Council Debate (Delphi Protocol)", [
+                ("Strategist",  "GPT-4o",      "Proposes investment thesis — views per instrument with conviction"),
+                ("Contrarian",  "Claude Sonnet","Challenges thesis — finds crowded trades and missed risks"),
+                ("Synthesizer", "DeepSeek-V3", "Mediates and produces final weights. Loops if conviction < 0.6"),
+            ]),
+            ("execute",  "🚀", "Execution", [
+                ("Portfolio Constructor", "—", "Applies position limits (25%), equity cap (40%), 5% cash buffer"),
+                ("Order Manager",         "—", "Executes trades at 30 bps round-trip + instrument slippage"),
+            ]),
+            ("feedback", "🔁", "Feedback Loop", [
+                ("Backtest Evaluator", "GPT-4o", "Scores each agent's accuracy · injects scores into future prompts"),
+            ]),
         ]
-        st.dataframe(pd.DataFrame(models), width="stretch", hide_index=True)
+        for stage_cls, icon, stage_name, agents in pipeline:
+            st.markdown(f"""
+            <div class="arch-node {stage_cls}">
+                <div class="arch-title">{icon} {stage_name}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            for agent, model, desc in agents:
+                model_tag = f'<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:0.75rem;">{model}</code>' if model != "—" else ""
+                st.markdown(f"""
+                <div style="margin:-0.25rem 0 0.5rem 1rem; padding: 0.5rem 0.75rem;
+                             background:white; border-radius:8px; border:1px solid #e2e8f0;">
+                    <span style="font-weight:600;font-size:0.85rem;color:#1e293b;">{agent}</span>
+                    {model_tag}
+                    <div style="font-size:0.78rem;color:#64748b;margin-top:2px;">{desc}</div>
+                </div>
+                """, unsafe_allow_html=True)
 
-    st.divider()
+    with col_r:
+        section("Key Design Decisions")
+        decisions = [
+            ("🎭", "Model Diversity",      "Each agent uses a different LLM (OpenAI / Anthropic / Google / DeepSeek) to prevent single-model groupthink."),
+            ("🔒", "No Look-Ahead Bias",   "All data access uses known_at ≤ as_of filtering. Point-in-time queries are enforced at the architecture level."),
+            ("📐", "Structured Debate",    "Delphi-method council: Strategist proposes → Contrarian challenges → Synthesizer mediates. Max 2 rounds, threshold 0.6."),
+            ("🧪", "Ablation Design",      "Market Technician is fully deterministic — isolates 'does LLM reasoning add value?' from 'does this data source help?'"),
+            ("💰", "Realistic Costs",      "30 bps round-trip + 5 bps slippage for illiquid instruments. Weekly rebalancing to avoid over-trading."),
+        ]
+        for icon, title, body in decisions:
+            st.markdown(f"""
+            <div style="background:white;border-radius:10px;padding:0.9rem 1rem;
+                        margin-bottom:0.6rem;box-shadow:0 1px 3px rgba(0,0,0,0.06);">
+                <div style="font-weight:700;font-size:0.875rem;color:#0f172a;margin-bottom:0.3rem;">
+                    {icon} {title}
+                </div>
+                <div style="font-size:0.8rem;color:#64748b;line-height:1.5;">{body}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    st.subheader("Key Design Decisions")
-    st.markdown("""
-    - **Model diversity**: Each agent uses a different LLM to reduce single-model bias
-    - **Structured debate**: Delphi-method protocol with max 2 rounds, consensus threshold of 0.6
-    - **Temporal discipline**: All data access filtered by `known_at <= as_of` — no look-ahead bias
-    - **Deterministic technicals**: Market Technician has no LLM — isolates "does LLM reasoning help?"
-    - **Weekly rebalancing**: Daily info gathering, weekly trading — narratives take days to play out
-    - **30 bps round-trip costs**: Realistic transaction cost model with instrument-specific slippage
-    """)
+        section("Backtest Parameters")
+        params = {
+            "Initial Capital": "$1,000,000",
+            "Period": "Jan 2021 – Dec 2024",
+            "Rebalance": "Weekly (Friday close)",
+            "Transaction Cost": "30 bps round-trip",
+            "Max Position": "25% single asset",
+            "Equity Cap": "40% total",
+            "Cash Buffer": "≥ 5%",
+        }
+        for k, v in params.items():
+            st.markdown(f"""
+            <div style="display:flex;justify-content:space-between;padding:0.4rem 0;
+                        border-bottom:1px solid #f1f5f9;font-size:0.85rem;">
+                <span style="color:#64748b;">{k}</span>
+                <span style="font-weight:600;color:#0f172a;">{v}</span>
+            </div>
+            """, unsafe_allow_html=True)
 
 
-# ---------------------------------------------------------------------------
-# Router
-# ---------------------------------------------------------------------------
+# ── Router ────────────────────────────────────────────────────────────────────
 
-if page == "Portfolio Performance":
-    page_portfolio()
-elif page == "Agent Council":
-    page_council()
-elif page == "Trade History":
-    page_trades()
-elif page == "Ablation Results":
-    page_ablation()
-elif page == "System Architecture":
-    page_architecture()
+if   "Overview"     in page: page_overview()
+elif "Performance"  in page: page_portfolio()
+elif "Council"      in page: page_council()
+elif "Trade"        in page: page_trades()
+elif "Ablation"     in page: page_ablation()
+elif "Architecture" in page: page_architecture()
