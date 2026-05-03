@@ -30,7 +30,10 @@ st.markdown("""
 .block-container { padding: 2rem 2.5rem 2rem 2.5rem; }
 
 /* ── Hide default chrome ── */
-#MainMenu, footer, header { visibility: hidden; }
+#MainMenu { visibility: hidden; }
+footer { visibility: hidden; }
+header { visibility: hidden; }
+[data-testid="collapsedControl"] { visibility: visible !important; }
 
 /* ── Sidebar background ── */
 [data-testid="stSidebar"] > div:first-child {
@@ -38,9 +41,6 @@ st.markdown("""
 }
 [data-testid="stSidebar"] * { color: #cbd5e1 !important; }
 [data-testid="stSidebar"] hr { border-color: #334155 !important; }
-
-/* ── Nav: hide radio widget label ── */
-[data-testid="stSidebar"] [data-testid="stRadio"] > div:first-child { display: none !important; }
 
 /* ── Nav: hide the radio dot circles ── */
 [data-testid="stSidebar"] [data-testid="stRadio"] [data-baseweb="radio"] { display: none !important; }
@@ -110,18 +110,6 @@ st.markdown("""
 .run-card-id   { font-size: 0.68rem; color: #64748b; font-family: monospace; margin-top: 1px; }
 .run-card-nav  { font-size: 0.78rem; font-weight: 600; margin-top: 3px; }
 
-/* ── Run card select buttons: collapse to zero-height click targets ── */
-[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"],
-[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
-    height: 0 !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-    margin: -0.45rem 0 0.35rem 0 !important;
-    opacity: 0 !important;
-    overflow: hidden !important;
-    border: none !important;
-    pointer-events: all !important;
-}
 
 /* ── Metric cards ── */
 .metric-card {
@@ -338,66 +326,66 @@ with st.sidebar:
         if st.session_state.selected_run not in run_ids:
             st.session_state.selected_run = run_ids[0]
 
-        # Header row with info tooltip
+        # Compact run selector with formatted timestamps
         st.markdown("""
-        <div style='display:flex;align-items:center;gap:0.4rem;margin-bottom:0.5rem;'>
+        <div style='display:flex;align-items:center;gap:0.4rem;margin-bottom:0.35rem;'>
             <span style='font-size:0.7rem;font-weight:700;text-transform:uppercase;
                          letter-spacing:0.08em;color:#64748b;'>Active Run</span>
-            <span title='Each run is one full backtest execution. The system fetches data,
-runs all agents, holds the council debate, and stores portfolio
-snapshots. Select a run to explore its decisions in the dashboard.'
+            <span title='Each run is one full backtest execution. The system fetches
+market data, runs all 7 agents, holds the council debate, and stores
+portfolio snapshots. Select a run to explore its decisions.'
                   style='font-size:0.75rem;color:#475569;cursor:help;'>ℹ️</span>
         </div>
         """, unsafe_allow_html=True)
 
-        # Scrollable run card list (max 5 visible)
-        for run_id in run_ids[:8]:
-            dt    = parse_run_datetime(run_id)
-            label = dt.strftime("%b %d, %Y  %H:%M UTC") if dt else run_id
-            short = run_id[-6:]
-            is_active = run_id == st.session_state.selected_run
+        idx = run_ids.index(st.session_state.selected_run)
+        chosen = st.selectbox(
+            "Active Run",
+            options=run_ids,
+            index=idx,
+            format_func=run_label,
+            label_visibility="collapsed",
+            help="Select a backtest run to explore its portfolio decisions and agent reasoning.",
+        )
+        if chosen != st.session_state.selected_run:
+            st.session_state.selected_run = chosen
+            st.rerun()
 
-            # Load quick stats for active run
-            nav_str = ""
-            ret_str = ""
-            ret_color = "#94a3b8"
-            if is_active:
-                try:
-                    h = load_portfolio_history(run_id)
-                    if not h.empty and len(h) >= 2:
-                        ret = h["nav"].iloc[-1] / h["nav"].iloc[0] - 1
-                        nav_str = f"${h['nav'].iloc[-1]:,.0f}"
-                        ret_str = f"{ret:+.1%}"
-                        ret_color = "#10b981" if ret >= 0 else "#ef4444"
-                except Exception:
-                    pass
+        # Mini stats card for the selected run
+        nav_str = ret_str = ""
+        ret_color = "#94a3b8"
+        try:
+            h = load_portfolio_history(chosen)
+            if not h.empty and len(h) >= 2:
+                ret = h["nav"].iloc[-1] / h["nav"].iloc[0] - 1
+                nav_str = f"${h['nav'].iloc[-1]:,.0f}"
+                ret_str = f"{ret:+.1%}"
+                ret_color = "#10b981" if ret >= 0 else "#ef4444"
+        except Exception:
+            pass
 
-            active_style = (
-                "background:rgba(59,130,246,0.18);border-color:#3b82f6;border-left-width:3px;"
-                if is_active else ""
-            )
+        dt = parse_run_datetime(chosen)
+        ts_str = dt.strftime("%b %d, %Y  %H:%M UTC") if dt else chosen
+        stats_html = (
+            f'<div style="font-size:0.72rem;color:#94a3b8;">{nav_str}</div>'
+            f'<div style="font-size:0.72rem;font-weight:700;color:{ret_color};">{ret_str}</div>'
+        ) if nav_str else ""
 
-            st.markdown(f"""
-            <div class="run-card" style="{active_style}">
-                <div style='display:flex;justify-content:space-between;align-items:start;'>
-                    <div>
-                        <div class="run-card-date">{label}</div>
-                        <div class="run-card-id">#{short}</div>
-                    </div>
-                    {'<div style="text-align:right;"><div style="font-size:0.75rem;color:#94a3b8;">' + nav_str + '</div>'
-                     + '<div style="font-size:0.75rem;font-weight:700;color:' + ret_color + ';">' + ret_str + '</div></div>'
-                     if nav_str else ''}
+        st.markdown(f"""
+        <div style="background:rgba(59,130,246,0.12);border:1px solid #3b82f6;
+                    border-left-width:3px;border-radius:8px;padding:0.5rem 0.75rem;
+                    margin-top:0.4rem;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <div style="font-size:0.75rem;font-weight:600;color:#e2e8f0;">{ts_str}</div>
+                <div style="font-size:0.65rem;color:#64748b;font-family:monospace;">
+                    #{chosen[-6:]}
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            <div style="text-align:right;">{stats_html}</div>
+        </div>
+        """, unsafe_allow_html=True)
 
-            if st.button(f"Select", key=f"run_btn_{run_id}",
-                         use_container_width=True,
-                         type="primary" if is_active else "secondary"):
-                st.session_state.selected_run = run_id
-                st.rerun()
-
-        selected_run = st.session_state.selected_run
+        selected_run = chosen
 
     else:
         selected_run = None
