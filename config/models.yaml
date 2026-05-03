@@ -16,7 +16,7 @@ gatherers:
 
   sentiment_scout:
     provider: google
-    model: gemini-1.5-flash
+    model: gemini-2.0-flash
     temperature: 0
     max_tokens: 2000
 
@@ -37,8 +37,8 @@ council:
     max_tokens: 3000
 
   synthesizer:
-    provider: deepseek
-    model: deepseek-chat
+    provider: openai
+    model: gpt-4o-mini
     temperature: 0
     max_tokens: 3000
 
