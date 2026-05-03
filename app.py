@@ -32,8 +32,6 @@ st.markdown("""
 /* ── Hide default chrome ── */
 #MainMenu { visibility: hidden; }
 footer { visibility: hidden; }
-header { visibility: hidden; }
-[data-testid="collapsedControl"] { visibility: visible !important; }
 
 /* ── Sidebar background ── */
 [data-testid="stSidebar"] > div:first-child {
