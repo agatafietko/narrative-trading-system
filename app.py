@@ -82,34 +82,42 @@ footer { visibility: hidden; }
 
 
 /* ── Run buttons (sidebar only) ── */
-[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"],
-[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] {
-    display: block !important; width: 100% !important; margin: 1px 0 !important; padding: 0 !important;
+/* Reset every layer — wrapper div, button element, inner content div */
+[data-testid="stSidebar"] [data-testid^="stBaseButton"],
+[data-testid="stSidebar"] [data-testid^="stBaseButton"] > button,
+[data-testid="stSidebar"] [data-testid^="stBaseButton"] > button > div {
+    background: transparent !important; background-color: transparent !important;
+    box-shadow: none !important; border: none !important;
+    margin: 0 !important; padding: 0 !important;
 }
-[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] button,
-[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] button {
+/* Style the actual <button> element */
+[data-testid="stSidebar"] [data-testid^="stBaseButton"] > button {
     display: flex !important; justify-content: space-between !important; align-items: center !important;
     width: 100% !important; padding: 0.45rem 0.85rem !important; border-radius: 8px !important;
-    border: none !important; border-left: 3px solid transparent !important;
+    border-left: 3px solid transparent !important;
     font-size: 0.78rem !important; font-family: "SF Mono","Fira Code",monospace !important;
-    cursor: pointer !important;
+    cursor: pointer !important; letter-spacing: 0.01em !important;
     transition: background 0.15s ease, color 0.15s ease,
                 border-color 0.15s ease, transform 0.13s ease !important;
 }
-/* Inactive — text blends into sidebar background until hovered */
-[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] button {
-    background: transparent !important; color: #1e293b !important;
+/* Wrapper spacing */
+[data-testid="stSidebar"] [data-testid^="stBaseButton"] {
+    display: block !important; width: 100% !important; margin: 1px 0 !important;
 }
-[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] button:hover {
+/* Inactive — text matches sidebar background (ghost until hovered) */
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] > button {
+    color: #1e293b !important;
+}
+[data-testid="stSidebar"] [data-testid="stBaseButton-secondary"] > button:hover {
     background: rgba(255,255,255,0.08) !important; color: #e2e8f0 !important;
     border-left-color: rgba(59,130,246,0.55) !important; transform: translateX(3px) !important;
 }
 /* Active */
-[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] button {
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] > button {
     background: rgba(59,130,246,0.18) !important; color: #93c5fd !important;
     border-left-color: #3b82f6 !important; font-weight: 600 !important;
 }
-[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] button:hover {
+[data-testid="stSidebar"] [data-testid="stBaseButton-primary"] > button:hover {
     background: rgba(59,130,246,0.26) !important; color: #bfdbfe !important;
 }
 
