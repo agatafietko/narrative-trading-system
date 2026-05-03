@@ -88,6 +88,54 @@ footer { visibility: hidden; }
 }
 
 
+/* ── Run items ── */
+.run-item {
+    position: relative;
+    padding: 0.45rem 0.85rem;
+    border-radius: 8px;
+    border-left: 3px solid transparent;
+    cursor: pointer;
+    margin: 1px 0;
+    transition: background 0.15s ease, border-color 0.15s ease;
+}
+.run-item:hover { background: rgba(255,255,255,0.07) !important; border-left-color: rgba(59,130,246,0.5) !important; }
+.run-item.run-active { background: rgba(59,130,246,0.18) !important; border-left-color: #3b82f6 !important; }
+.run-item-row { display: flex; justify-content: space-between; align-items: center;
+                font-size: 0.78rem; pointer-events: none; }
+.run-item-date { color: #94a3b8; }
+.run-item:hover .run-item-date { color: #e2e8f0; }
+.run-item-ret { font-weight: 700; }
+
+/* ── Run hover tooltip ── */
+.run-tooltip {
+    display: none;
+    position: absolute;
+    left: calc(100% + 10px);
+    top: -4px;
+    width: 192px;
+    background: #0f172a;
+    border: 1px solid #334155;
+    border-radius: 10px;
+    padding: 0.7rem 0.9rem;
+    z-index: 9999;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.55);
+    pointer-events: none;
+}
+.run-item:hover .run-tooltip { display: block; }
+.tt-title { font-size: 0.67rem; font-weight: 700; color: #475569; text-transform: uppercase;
+             letter-spacing: 0.08em; margin-bottom: 0.45rem; }
+.tt-row { display: flex; justify-content: space-between; font-size: 0.75rem;
+           color: #64748b; padding: 1px 0; }
+.tt-row span:last-child { font-weight: 600; color: #e2e8f0; }
+
+/* ── Invisible overlay buttons (positioned over the run item cards) ── */
+[data-testid="stSidebar"] .run-btn-wrap [data-testid^="stBaseButton"] button {
+    height: 36px !important; min-height: 0 !important; opacity: 0 !important;
+    margin-top: -40px !important; cursor: pointer !important; width: 100% !important;
+    background: transparent !important; border: none !important; padding: 0 !important;
+    position: relative !important; z-index: 2 !important;
+}
+
 /* ── Metric cards ── */
 .metric-card {
     background: white;
@@ -279,8 +327,19 @@ def run_list_label(run_id: str) -> str:
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 
+NAV_OPTIONS = [
+    "🏠  Overview",
+    "📊  Portfolio Performance",
+    "⚖️  Agent Council",
+    "📋  Trade History",
+    "🔬  Ablation Results",
+    "🏗️  Architecture",
+]
+
 if "selected_run" not in st.session_state:
     st.session_state.selected_run = None
+if "page" not in st.session_state:
+    st.session_state.page = NAV_OPTIONS[0]
 
 with st.sidebar:
     st.markdown("""
@@ -295,18 +354,15 @@ with st.sidebar:
     """, unsafe_allow_html=True)
     st.divider()
 
+    page_idx = NAV_OPTIONS.index(st.session_state.page) if st.session_state.page in NAV_OPTIONS else 0
     page = st.radio(
         "Navigation",
-        options=[
-            "🏠  Overview",
-            "📊  Portfolio Performance",
-            "🤖  Agent Council",
-            "📋  Trade History",
-            "🔬  Ablation Results",
-            "🏗️  Architecture",
-        ],
+        options=NAV_OPTIONS,
+        index=page_idx,
         label_visibility="collapsed",
     )
+    if page != st.session_state.page:
+        st.session_state.page = page
 
     st.divider()
 
@@ -317,61 +373,89 @@ with st.sidebar:
         if st.session_state.selected_run not in run_ids:
             st.session_state.selected_run = run_ids[0]
 
-        # Section label
-        st.markdown("""
-        <div style='font-size:0.7rem;font-weight:700;text-transform:uppercase;
-                     letter-spacing:0.08em;color:#64748b;margin-bottom:0.2rem;'>
-            Recent Runs
-        </div>
-        <div style='font-size:0.68rem;color:#475569;margin-bottom:0.4rem;'>
-            Select a run to explore its decisions
-        </div>
-        """, unsafe_allow_html=True)
+        # Build valid run list: only runs with parseable date AND portfolio return
+        valid_runs = []   # list of (run_id, dt, ret, final_nav, sharpe, mdd)
+        for rid in run_ids[:15]:
+            dt = parse_run_datetime(rid)
+            if not dt:
+                continue
+            try:
+                h = load_portfolio_history(rid)
+                if h.empty or len(h) < 2:
+                    continue
+                nav = h["nav"]
+                ret = nav.iloc[-1] / nav.iloc[0] - 1
+                weekly_ret = nav.pct_change().dropna()
+                sharpe = (weekly_ret.mean() / weekly_ret.std() * (52 ** 0.5)) if weekly_ret.std() > 0 else 0.0
+                mdd = float(((nav / nav.cummax()) - 1).min())
+                valid_runs.append((rid, dt, ret, float(nav.iloc[-1]), float(sharpe), mdd))
+            except Exception:
+                continue
+            if len(valid_runs) >= 8:
+                break
 
-        # Build label→id mapping (labels must be unique; append short id if needed)
-        shown = run_ids[:10]
-        labels = []
-        label_to_id = {}
-        for rid in shown:
-            lbl = run_list_label(rid)
-            # make unique if duplicate
-            orig = lbl
-            n = 1
-            while lbl in label_to_id:
-                lbl = f"{orig} ({n})"
-                n += 1
-            labels.append(lbl)
-            label_to_id[lbl] = rid
+        if not valid_runs:
+            selected_run = st.session_state.selected_run
+            st.markdown("<div style='color:#f87171;font-size:0.78rem;'>No completed runs yet.</div>",
+                        unsafe_allow_html=True)
+        else:
+            # Ensure selected_run is in valid_runs
+            valid_ids = [r[0] for r in valid_runs]
+            if st.session_state.selected_run not in valid_ids:
+                st.session_state.selected_run = valid_ids[0]
 
-        # Find current index
-        current_label = next(
-            (lbl for lbl, rid in label_to_id.items() if rid == st.session_state.selected_run),
-            labels[0],
-        )
-        cur_idx = labels.index(current_label)
+            st.markdown("""
+            <div style='font-size:0.7rem;font-weight:700;text-transform:uppercase;
+                         letter-spacing:0.08em;color:#64748b;margin-bottom:0.35rem;'>
+                Recent Runs
+            </div>
+            """, unsafe_allow_html=True)
 
-        # Scrollable run list styled the same as nav items
-        st.markdown('<div class="run-radio">', unsafe_allow_html=True)
-        chosen_label = st.radio(
-            "Select Run",
-            options=labels,
-            index=cur_idx,
-            label_visibility="collapsed",
-        )
-        st.markdown('</div>', unsafe_allow_html=True)
+            for (rid, dt, ret, final_nav, sharpe, mdd) in valid_runs:
+                is_active = rid == st.session_state.selected_run
+                date_str  = dt.strftime("%b %d  %H:%M")
+                ret_str   = f"{ret:+.1%}"
+                ret_color = "#10b981" if ret >= 0 else "#ef4444"
+                nav_str   = f"${final_nav:,.0f}"
+                sharpe_str = f"{sharpe:.2f}"
+                mdd_str    = f"{mdd:.1%}"
+                active_cls = "run-active" if is_active else ""
+                active_sty = "background:rgba(59,130,246,0.18);border-left-color:#3b82f6;" if is_active else ""
 
-        chosen = label_to_id[chosen_label]
-        if chosen != st.session_state.selected_run:
-            st.session_state.selected_run = chosen
-            st.rerun()
+                # HTML card with CSS hover tooltip
+                st.markdown(f"""
+                <div class="run-item {active_cls}" style="{active_sty}">
+                    <div class="run-item-row">
+                        <span class="run-item-date">{date_str}</span>
+                        <span class="run-item-ret" style="color:{ret_color};">{ret_str}</span>
+                    </div>
+                    <div class="run-tooltip">
+                        <div class="tt-title">Run preview</div>
+                        <div class="tt-row"><span>Final NAV</span><span>{nav_str}</span></div>
+                        <div class="tt-row"><span>Return</span>
+                            <span style="color:{ret_color};">{ret_str}</span></div>
+                        <div class="tt-row"><span>Sharpe</span><span>{sharpe_str}</span></div>
+                        <div class="tt-row"><span>Max DD</span>
+                            <span style="color:#ef4444;">{mdd_str}</span></div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
-        selected_run = chosen
+                # Invisible button positioned over the card via CSS
+                st.markdown('<div class="run-btn-wrap">', unsafe_allow_html=True)
+                if st.button(date_str, key=f"run_{rid}", use_container_width=True):
+                    st.session_state.selected_run = rid
+                    st.session_state.page = "📊  Portfolio Performance"
+                    st.rerun()
+                st.markdown('</div>', unsafe_allow_html=True)
+
+            selected_run = st.session_state.selected_run
 
     else:
         selected_run = None
         st.markdown(
-            "<div style='color:#f87171;font-size:0.8rem;padding:0.5rem;'>"
-            "No runs found.<br>Trigger a GitHub Actions run.</div>",
+            "<div style='color:#f87171;font-size:0.78rem;'>"
+            "No runs found. Trigger a GitHub Actions run.</div>",
             unsafe_allow_html=True,
         )
 
@@ -452,7 +536,7 @@ def page_overview():
             {"Agent": "Sentiment Scout",   "Model": "Gemini Flash",    "Role": "Gatherer"},
             {"Agent": "Strategist",        "Model": "GPT-4o",          "Role": "Council"},
             {"Agent": "Contrarian",        "Model": "Claude Sonnet",   "Role": "Council"},
-            {"Agent": "Synthesizer",       "Model": "DeepSeek-V3",     "Role": "Council"},
+            {"Agent": "Synthesizer",       "Model": "GPT-4o mini",     "Role": "Council"},
             {"Agent": "Evaluator",         "Model": "GPT-4o",          "Role": "Feedback"},
         ])
         st.dataframe(models_df, hide_index=True, use_container_width=True,
@@ -842,7 +926,7 @@ def page_architecture():
             ("council",  "⚖️",  "Council Debate (Delphi Protocol)", [
                 ("Strategist",  "GPT-4o",      "Proposes investment thesis — views per instrument with conviction"),
                 ("Contrarian",  "Claude Sonnet","Challenges thesis — finds crowded trades and missed risks"),
-                ("Synthesizer", "DeepSeek-V3", "Mediates and produces final weights. Loops if conviction < 0.6"),
+                ("Synthesizer", "GPT-4o mini", "Mediates and produces final weights. Loops if conviction < 0.6"),
             ]),
             ("execute",  "🚀", "Execution", [
                 ("Portfolio Constructor", "—", "Applies position limits (25%), equity cap (40%), 5% cash buffer"),
@@ -911,9 +995,10 @@ def page_architecture():
 
 # ── Router ────────────────────────────────────────────────────────────────────
 
-if   "Overview"     in page: page_overview()
-elif "Performance"  in page: page_portfolio()
-elif "Council"      in page: page_council()
-elif "Trade"        in page: page_trades()
-elif "Ablation"     in page: page_ablation()
-elif "Architecture" in page: page_architecture()
+_p = st.session_state.page
+if   "Overview"     in _p: page_overview()
+elif "Performance"  in _p: page_portfolio()
+elif "Council"      in _p: page_council()
+elif "Trade"        in _p: page_trades()
+elif "Ablation"     in _p: page_ablation()
+elif "Architecture" in _p: page_architecture()
