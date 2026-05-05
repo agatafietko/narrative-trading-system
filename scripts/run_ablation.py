@@ -29,9 +29,10 @@ from src.utils.logging import setup_logging
 from src.utils.reproducibility import generate_run_id, set_global_seed
 
 
-def run_graph_strategy(graph_variant: str):
+def run_graph_strategy(graph_variant: str, run_id: str = None):
     """Create a strategy function that uses a LangGraph workflow."""
-    run_id = generate_run_id()  # stable across all rebalance dates for this variant run
+    if run_id is None:
+        run_id = generate_run_id()
 
     def strategy_fn(as_of, current_weights, nav, store):
         graph = get_graph(graph_variant, store=store)
@@ -219,11 +220,12 @@ def main():
                 print(f"RUNNING GRAPH VARIANT: {variant}")
                 print(f"{'='*60}")
 
-                strategy_fn = run_graph_strategy(variant)
+                variant_run_id = f"ablation_{variant}_{generate_run_id()}"
+                strategy_fn = run_graph_strategy(variant, run_id=variant_run_id)
                 engine = BacktestEngine(
                     store=store,
                     strategy_fn=strategy_fn,
-                    run_id=f"ablation_{variant}_{generate_run_id()}",
+                    run_id=variant_run_id,
                     start_date=start_override,
                     end_date=end_override,
                 )
