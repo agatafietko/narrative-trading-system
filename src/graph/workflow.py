@@ -218,9 +218,13 @@ def get_graph(variant: str = "full", store=None):
     Args:
         variant: One of "full", "minimal", "no_narrative".
         store: Optional DataStore for council vote persistence (full graph only).
+               Ignored for "minimal" and "no_narrative" variants.
     """
     if variant == "full":
         return build_full_graph(store=store)
     if variant not in GRAPH_REGISTRY:
-        raise ValueError(f"Unknown graph variant: {variant}. Options: {list(GRAPH_REGISTRY.keys())}")
+        raise ValueError(
+            f"Unknown graph variant: {variant!r}. "
+            f"Options: {['full'] + list(GRAPH_REGISTRY.keys())}"
+        )
     return GRAPH_REGISTRY[variant]()
