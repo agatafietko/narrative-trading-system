@@ -30,8 +30,8 @@ def load_fred_config() -> list[dict]:
 
 def fetch_fred_data(
     api_key: str,
-    start_date: str = "2020-01-01",
-    end_date: str | None = None,
+    start_date: str = "2026-01-01",
+    end_date: str = "2026-04-05",
 ) -> list[dict]:
     """Fetch all configured FRED series.
 
@@ -126,8 +126,8 @@ def fetch_fred_data(
 def fetch_and_store(
     store: DataStore,
     api_key: str,
-    start_date: str = "2020-01-01",
-    end_date: str | None = None,
+    start_date: str = "2026-01-01",
+    end_date: str = "2026-04-05",
 ) -> int:
     """Fetch FRED data and store in database.
 

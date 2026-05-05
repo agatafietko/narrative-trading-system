@@ -30,8 +30,8 @@ def load_universe() -> dict[str, dict]:
 
 
 def fetch_market_data(
-    start_date: str = "2020-01-01",
-    end_date: str | None = None,
+    start_date: str = "2026-01-01",
+    end_date: str = "2026-04-05",
 ) -> pd.DataFrame:
     """Fetch OHLCV data for all instruments in the universe.
 
@@ -98,8 +98,8 @@ def fetch_market_data(
 
 def fetch_and_store(
     store: DataStore,
-    start_date: str = "2020-01-01",
-    end_date: str | None = None,
+    start_date: str = "2026-01-01",
+    end_date: str = "2026-04-05",
 ) -> int:
     """Fetch market data and store in the database.
 
