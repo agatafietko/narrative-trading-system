@@ -204,8 +204,9 @@ def _single_agent_constructor_node(state: dict) -> dict:
 # Graph registry for easy selection
 # ---------------------------------------------------------------------------
 
+# "full" is intentionally absent — it requires a store parameter and is handled
+# explicitly in get_graph. The registry contains only parameter-free builders.
 GRAPH_REGISTRY = {
-    "full": build_full_graph,
     "minimal": build_minimal_graph,
     "no_narrative": build_no_narrative_graph,
 }
