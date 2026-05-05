@@ -47,8 +47,8 @@ pip install -e ".[dev,notebooks]"
 cp .env.example .env
 # Edit .env with your API keys
 
-# 3. Fetch historical data
-python scripts/fetch_historical_data.py --start 2020-01-01
+# 3. Fetch historical data (2026 scope)
+python scripts/fetch_historical_data.py --start 2026-01-01 --end 2026-04-05
 
 # 4. Run baselines
 python scripts/run_backtest.py --strategy sixty_forty
@@ -69,17 +69,18 @@ python scripts/run_ablation.py
 | `ANTHROPIC_API_KEY` | Narrative Analyst, Contrarian | Yes (for LLM agents) |
 | `GOOGLE_API_KEY` | Sentiment Scout | Yes (for LLM agents) |
 | `DEEPSEEK_API_KEY` | Synthesizer (DeepSeek-V3) | Yes (for LLM agents) |
-| `FRED_API_KEY` | FRED data fetcher | Yes (free at fred.stlouisfed.org) |
-| `NEWSAPI_KEY` | News fetcher | Optional (RSS feeds work without it) |
-| `REDDIT_CLIENT_ID` | Reddit fetcher | Optional |
-| `REDDIT_CLIENT_SECRET` | Reddit fetcher | Optional |
+| `FRED_API_KEY` | FRED macroeconomic data fetcher | Yes (free at fred.stlouisfed.org) |
+| `FINNHUB_API_KEY` | Finnhub news & sentiment fetcher | Yes (free tier at finnhub.io) |
+| `NEWSAPI_KEY` | News fetcher (legacy) | Optional |
+| `REDDIT_CLIENT_ID` | Reddit fetcher (legacy) | Optional |
+| `REDDIT_CLIENT_SECRET` | Reddit fetcher (legacy) | Optional |
 
 ## Backtest Parameters
 
 - Initial capital: $1,000,000
 - Transaction costs: 30 bps round-trip + 5 bps slippage for illiquid instruments
 - Rebalance frequency: Weekly (Friday close)
-- Evaluation period: 2021-01-01 to 2024-12-31
+- Current data scope: 2026-01-01 to 2026-04-05
 
 ## Ablation Matrix
 
@@ -127,7 +128,7 @@ The workflow lives at `.github/workflows/weekly_run.yml` and has two modes:
 
 #### Automatic (every weekday at 22:00 UTC)
 Fires Monday–Friday after US market close. Runs all jobs in sequence:
-1. **fetch-data** — pulls latest prices from yfinance and macro data from FRED
+1. **fetch-data** — pulls prices from yfinance, macro data from FRED, and company/market news from Finnhub; validates all three sources returned data (exits with error if any source returns 0 records)
 2. **run-baselines** — runs all deterministic baselines, uploads `ablation_results.json` as an artifact
 3. **run-full-system** — runs the complete multi-agent council (GPT-4o + Claude + Gemini + DeepSeek), stores council votes and portfolio decisions in Supabase
 
@@ -152,14 +153,12 @@ Add these under **Settings → Secrets and variables → Actions**:
 | Secret | Used by |
 |--------|---------|
 | `DATABASE_URL` | All jobs — Supabase connection string |
-| `FRED_API_KEY` | fetch-data job |
+| `FRED_API_KEY` | fetch-data job — macroeconomic indicators |
+| `FINNHUB_API_KEY` | fetch-data job — company & market news |
 | `OPENAI_API_KEY` | Full system — Macro Sentinel, Strategist, Evaluator |
 | `ANTHROPIC_API_KEY` | Full system — Narrative Analyst, Contrarian |
 | `GOOGLE_API_KEY` | Full system — Sentiment Scout (Gemini) |
 | `DEEPSEEK_API_KEY` | Full system — Synthesizer (DeepSeek-V3) |
-| `NEWSAPI_KEY` | Full system — news article fetcher (optional) |
-| `REDDIT_CLIENT_ID` | Full system — Reddit sentiment (optional) |
-| `REDDIT_CLIENT_SECRET` | Full system — Reddit sentiment (optional) |
 
 ## Project Structure
 
