@@ -13,16 +13,16 @@ from __future__ import annotations
 from langgraph.graph import END, START, StateGraph
 
 from src.graph.nodes import (
-    contrarian_node,
     macro_sentinel_node,
+    make_contrarian_node,
+    make_strategist_node,
+    make_synthesizer_node,
     market_technician_node,
     narrative_analyst_node,
     order_manager_node,
     portfolio_constructor_node,
     sentiment_scout_node,
     signal_aggregator_node,
-    strategist_node,
-    synthesizer_node,
 )
 from src.graph.routing import check_consensus
 from src.state.schema import TradingState
@@ -31,8 +31,12 @@ from src.utils.logging import get_logger
 logger = get_logger("graph.workflow")
 
 
-def build_full_graph() -> StateGraph:
+def build_full_graph(store=None) -> StateGraph:
     """Build the full multi-agent workflow graph.
+
+    Args:
+        store: Optional DataStore instance. When provided, council nodes persist
+               their votes to Supabase after each deliberation round.
 
     Graph structure:
         START
@@ -71,9 +75,9 @@ def build_full_graph() -> StateGraph:
     builder.add_node("signal_aggregator", signal_aggregator_node)
 
     # Layer 2: Council debate nodes
-    builder.add_node("strategist", strategist_node)
-    builder.add_node("contrarian", contrarian_node)
-    builder.add_node("synthesizer", synthesizer_node)
+    builder.add_node("strategist", make_strategist_node(store))
+    builder.add_node("contrarian", make_contrarian_node(store))
+    builder.add_node("synthesizer", make_synthesizer_node(store))
 
     # Layer 3: Execution nodes
     builder.add_node("portfolio_constructor", portfolio_constructor_node)
@@ -127,7 +131,7 @@ def build_minimal_graph() -> StateGraph:
     builder.add_node("signal_aggregator", signal_aggregator_node)
 
     # Single council member (Strategist acts alone)
-    builder.add_node("strategist", strategist_node)
+    builder.add_node("strategist", make_strategist_node(None))
 
     # Execution (Strategist output goes directly to portfolio constructor)
     builder.add_node("portfolio_constructor", _single_agent_constructor_node)
@@ -157,9 +161,9 @@ def build_no_narrative_graph() -> StateGraph:
     builder.add_node("macro_sentinel", macro_sentinel_node)
     builder.add_node("market_technician", market_technician_node)
     builder.add_node("signal_aggregator", signal_aggregator_node)
-    builder.add_node("strategist", strategist_node)
-    builder.add_node("contrarian", contrarian_node)
-    builder.add_node("synthesizer", synthesizer_node)
+    builder.add_node("strategist", make_strategist_node(None))
+    builder.add_node("contrarian", make_contrarian_node(None))
+    builder.add_node("synthesizer", make_synthesizer_node(None))
     builder.add_node("portfolio_constructor", portfolio_constructor_node)
     builder.add_node("order_manager", order_manager_node)
 
@@ -207,8 +211,15 @@ GRAPH_REGISTRY = {
 }
 
 
-def get_graph(variant: str = "full"):
-    """Get a compiled graph by variant name."""
+def get_graph(variant: str = "full", store=None):
+    """Get a compiled graph by variant name.
+
+    Args:
+        variant: One of "full", "minimal", "no_narrative".
+        store: Optional DataStore for council vote persistence (full graph only).
+    """
     if variant not in GRAPH_REGISTRY:
         raise ValueError(f"Unknown graph variant: {variant}. Options: {list(GRAPH_REGISTRY.keys())}")
+    if variant == "full":
+        return build_full_graph(store=store)
     return GRAPH_REGISTRY[variant]()
