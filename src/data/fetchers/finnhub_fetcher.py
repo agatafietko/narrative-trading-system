@@ -64,7 +64,17 @@ def fetch_company_news(
     from_date: str,
     to_date: str,
 ) -> list[dict]:
-    """Fetch news articles for each ticker in the universe."""
+    """Fetch news articles for each ticker in the universe.
+
+    Args:
+        api_key: Finnhub API key.
+        tickers: List of ticker symbols.
+        from_date: Start date in YYYY-MM-DD format.
+        to_date: End date in YYYY-MM-DD format.
+
+    Returns:
+        Deduplicated list of article records.
+    """
     client = finnhub.Client(api_key=api_key)
     seen_hashes: set[str] = set()
     records: list[dict] = []
@@ -87,7 +97,14 @@ def fetch_company_news(
 
 
 def fetch_market_news(api_key: str) -> list[dict]:
-    """Fetch general market and forex news from Finnhub."""
+    """Fetch general market and forex news from Finnhub.
+
+    Args:
+        api_key: Finnhub API key.
+
+    Returns:
+        Deduplicated list of article records.
+    """
     client = finnhub.Client(api_key=api_key)
     seen_hashes: set[str] = set()
     records: list[dict] = []
