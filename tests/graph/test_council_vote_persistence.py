@@ -14,20 +14,6 @@ from unittest.mock import MagicMock, patch
 
 AS_OF = datetime(2026, 3, 15, 12, 0, 0)
 
-FAKE_VOTE = MagicMock()
-FAKE_VOTE.agent_name = "strategist"
-FAKE_VOTE.overall_conviction = 0.75
-FAKE_VOTE.views = [{"instrument": "SPY", "direction": 1, "conviction": 0.8}]
-FAKE_VOTE.summary = "Bullish thesis."
-FAKE_VOTE.model_used = "openai/gpt-4o"
-FAKE_VOTE.model_dump.return_value = {
-    "agent_name": "strategist",
-    "overall_conviction": 0.75,
-    "views": [{"instrument": "SPY", "direction": 1, "conviction": 0.8}],
-    "summary": "Bullish thesis.",
-    "model_used": "openai/gpt-4o",
-}
-
 STRATEGIST_STATE = {
     "run_id": "test-run-001",
     "as_of": AS_OF,
@@ -48,6 +34,7 @@ CONTRARIAN_STATE = {
 SYNTHESIZER_STATE = {
     "run_id": "test-run-001",
     "as_of": AS_OF,
+    "signals": [],
     "current_portfolio": {},
     "council_round": 1,
     "strategist_vote": {"agent_name": "strategist"},
@@ -62,9 +49,24 @@ SYNTHESIZER_STATE = {
 def test_strategist_node_calls_store_council_vote():
     from src.graph.nodes import make_strategist_node
 
+    # Create local FAKE_VOTE to avoid shared MagicMock state across tests
+    fake_vote = MagicMock()
+    fake_vote.agent_name = "strategist"
+    fake_vote.overall_conviction = 0.75
+    fake_vote.views = [{"instrument": "SPY", "direction": 1, "conviction": 0.8}]
+    fake_vote.summary = "Bullish thesis."
+    fake_vote.model_used = "openai/gpt-4o"
+    fake_vote.model_dump.return_value = {
+        "agent_name": "strategist",
+        "overall_conviction": 0.75,
+        "views": [{"instrument": "SPY", "direction": 1, "conviction": 0.8}],
+        "summary": "Bullish thesis.",
+        "model_used": "openai/gpt-4o",
+    }
+
     mock_store = MagicMock()
     mock_agent = MagicMock()
-    mock_agent.generate_vote.return_value = FAKE_VOTE
+    mock_agent.generate_vote.return_value = fake_vote
 
     with patch("src.graph.nodes._get_strategist", return_value=mock_agent), \
          patch("src.graph.nodes.DataStore"):
@@ -170,15 +172,31 @@ def test_synthesizer_node_calls_store_council_vote():
 def test_no_store_skips_persistence():
     from src.graph.nodes import make_strategist_node
 
+    # Create local FAKE_VOTE to avoid shared MagicMock state across tests
+    fake_vote = MagicMock()
+    fake_vote.agent_name = "strategist"
+    fake_vote.overall_conviction = 0.75
+    fake_vote.views = [{"instrument": "SPY", "direction": 1, "conviction": 0.8}]
+    fake_vote.summary = "Bullish thesis."
+    fake_vote.model_used = "openai/gpt-4o"
+    fake_vote.model_dump.return_value = {
+        "agent_name": "strategist",
+        "overall_conviction": 0.75,
+        "views": [{"instrument": "SPY", "direction": 1, "conviction": 0.8}],
+        "summary": "Bullish thesis.",
+        "model_used": "openai/gpt-4o",
+    }
+
     mock_agent = MagicMock()
-    mock_agent.generate_vote.return_value = FAKE_VOTE
+    mock_agent.generate_vote.return_value = fake_vote
 
     with patch("src.graph.nodes._get_strategist", return_value=mock_agent), \
          patch("src.graph.nodes.DataStore"):
         node = make_strategist_node(None)
         result = node(STRATEGIST_STATE)
 
-    # Should complete normally and return state
+    # Verify the function completes and returns proper state
     assert "strategist_vote" in result
     assert result["council_round"] == 1
-    # No store, so no persistence call possible — test passes by not raising
+    # If the 'if store:' guard is absent, calling None.store_council_vote()
+    # would raise AttributeError here, causing the test to fail.
