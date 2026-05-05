@@ -516,8 +516,16 @@ class DataStore:
         return df
 
     def get_all_run_ids(self) -> list[str]:
-        """Get all distinct run IDs."""
-        query = "SELECT DISTINCT run_id FROM portfolio_snapshots ORDER BY run_id DESC"
+        """Get all distinct run IDs, ordered by the embedded timestamp (newest first)."""
+        # Run IDs all contain a YYYYMMDD_HHMMSS segment. Extract it for correct
+        # chronological ordering regardless of prefix (run_ vs ablation_full_run_, etc.)
+        query = """
+            SELECT run_id
+            FROM portfolio_snapshots
+            GROUP BY run_id
+            ORDER BY substring(run_id FROM '\\d{8}_\\d{6}') DESC NULLS LAST,
+                     run_id DESC
+        """
         with self._connect() as conn:
             rows = self._fetchall_dicts(conn, query)
         return [r["run_id"] for r in rows]
