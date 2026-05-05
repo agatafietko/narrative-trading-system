@@ -170,7 +170,7 @@ def make_strategist_node(store=None):
         logger.info(f"[Strategist] Conviction: {vote.overall_conviction:.2f}")
         logger.info(f"[Strategist] Thesis: {vote.summary[:100]}")
 
-        if store:
+        if store is not None:
             try:
                 store.store_council_vote(
                     run_id=state["run_id"],
@@ -218,7 +218,7 @@ def make_contrarian_node(store=None):
         logger.info(f"[Contrarian] Conviction: {vote.overall_conviction:.2f}")
         logger.info(f"[Contrarian] Counter-thesis: {vote.summary[:100]}")
 
-        if store:
+        if store is not None:
             try:
                 store.store_council_vote(
                     run_id=state["run_id"],
@@ -264,7 +264,7 @@ def make_synthesizer_node(store=None):
         logger.info(f"[Synthesizer] Final conviction: {vote.overall_conviction:.2f}")
         logger.info(f"[Synthesizer] Decision: {vote.summary[:100]}")
 
-        if store:
+        if store is not None:
             try:
                 store.store_council_vote(
                     run_id=state["run_id"],
