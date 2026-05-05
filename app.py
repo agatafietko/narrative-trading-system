@@ -499,7 +499,7 @@ def page_overview():
     with c1: metric_card("Total Runs", str(len(run_ids)) if run_ids else "0")
     with c2: metric_card("Instruments", "11")
     with c3: metric_card("LLM Agents", "7")
-    with c4: metric_card("Backtest Period", "2021–2024")
+    with c4: metric_card("Backtest Period", "Jan–Apr 2026")
 
     st.markdown("<br>", unsafe_allow_html=True)
     col_l, col_r = st.columns([3, 2])
@@ -969,7 +969,7 @@ def page_architecture():
         section("Backtest Parameters")
         params = {
             "Initial Capital": "$1,000,000",
-            "Period": "Jan 2021 – Dec 2024",
+            "Period": "Jan 2026 – Apr 2026",
             "Rebalance": "Weekly (Friday close)",
             "Transaction Cost": "30 bps round-trip",
             "Max Position": "25% single asset",
