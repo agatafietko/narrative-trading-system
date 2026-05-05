@@ -41,7 +41,8 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           FRED_API_KEY: ${{ secrets.FRED_API_KEY }}
-        run: python scripts/fetch_historical_data.py
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+        run: python scripts/fetch_historical_data.py --start 2026-01-01 --end 2026-04-05
 
   run-baselines:
     name: Run Deterministic Baselines
