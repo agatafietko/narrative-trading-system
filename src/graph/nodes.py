@@ -148,66 +148,142 @@ def signal_aggregator_node(state: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 
-def strategist_node(state: dict) -> dict:
-    """Strategist council node (GPT-4o)."""
-    as_of = state["as_of"]
-    signals = state.get("signals", [])
-    current_portfolio = state.get("current_portfolio", {})
-    round_num = state.get("council_round", 0) + 1
+def make_strategist_node(store=None):
+    """Factory that returns a Strategist node function.
 
-    logger.info(f"[Strategist] Debate round {round_num}")
-    store = DataStore()
-    agent = _get_strategist()
+    Args:
+        store: DataStore instance for persisting votes, or None to skip persistence.
+    """
+    def strategist_node(state: dict) -> dict:
+        as_of = state["as_of"]
+        signals = state.get("signals", [])
+        current_portfolio = state.get("current_portfolio", {})
+        round_num = state.get("council_round", 0) + 1
 
-    vote = agent.generate_vote(signals, current_portfolio, as_of, store)
+        logger.info(f"[Strategist] Debate round {round_num}")
+        data_store = DataStore()
+        agent = _get_strategist()
 
-    logger.info(f"[Strategist] Conviction: {vote.overall_conviction:.2f}")
-    logger.info(f"[Strategist] Thesis: {vote.summary[:100]}")
+        vote = agent.generate_vote(signals, current_portfolio, as_of, data_store)
+        vote_data = vote.model_dump()
 
-    return {
-        "strategist_vote": vote.model_dump(),
-        "council_round": round_num,
-    }
+        logger.info(f"[Strategist] Conviction: {vote.overall_conviction:.2f}")
+        logger.info(f"[Strategist] Thesis: {vote.summary[:100]}")
+
+        if store:
+            try:
+                store.store_council_vote(
+                    run_id=state["run_id"],
+                    vote={
+                        "agent_name": vote_data["agent_name"],
+                        "as_of": as_of.isoformat(),
+                        "overall_conviction": vote_data["overall_conviction"],
+                        "views": vote_data["views"],
+                        "summary": vote_data["summary"],
+                        "model_used": vote_data["model_used"],
+                    },
+                    round_number=round_num,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist council vote: {e}")
+
+        return {
+            "strategist_vote": vote_data,
+            "council_round": round_num,
+        }
+
+    return strategist_node
 
 
-def contrarian_node(state: dict) -> dict:
-    """Contrarian council node (Claude)."""
-    as_of = state["as_of"]
-    signals = state.get("signals", [])
-    strategist_vote = state.get("strategist_vote", {})
-    current_portfolio = state.get("current_portfolio", {})
+def make_contrarian_node(store=None):
+    """Factory that returns a Contrarian node function.
 
-    logger.info("[Contrarian] Challenging the Strategist")
-    store = DataStore()
-    agent = _get_contrarian()
+    Args:
+        store: DataStore instance for persisting votes, or None to skip persistence.
+    """
+    def contrarian_node(state: dict) -> dict:
+        as_of = state["as_of"]
+        signals = state.get("signals", [])
+        strategist_vote = state.get("strategist_vote", {})
+        current_portfolio = state.get("current_portfolio", {})
+        round_num = state.get("council_round", 1)
 
-    vote = agent.generate_vote(signals, strategist_vote, current_portfolio, as_of, store)
+        logger.info("[Contrarian] Challenging the Strategist")
+        data_store = DataStore()
+        agent = _get_contrarian()
 
-    logger.info(f"[Contrarian] Conviction: {vote.overall_conviction:.2f}")
-    logger.info(f"[Contrarian] Counter-thesis: {vote.summary[:100]}")
+        vote = agent.generate_vote(signals, strategist_vote, current_portfolio, as_of, data_store)
+        vote_data = vote.model_dump()
 
-    return {"contrarian_vote": vote.model_dump()}
+        logger.info(f"[Contrarian] Conviction: {vote.overall_conviction:.2f}")
+        logger.info(f"[Contrarian] Counter-thesis: {vote.summary[:100]}")
+
+        if store:
+            try:
+                store.store_council_vote(
+                    run_id=state["run_id"],
+                    vote={
+                        "agent_name": vote_data["agent_name"],
+                        "as_of": as_of.isoformat(),
+                        "overall_conviction": vote_data["overall_conviction"],
+                        "views": vote_data["views"],
+                        "summary": vote_data["summary"],
+                        "model_used": vote_data["model_used"],
+                    },
+                    round_number=round_num,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist council vote: {e}")
+
+        return {"contrarian_vote": vote_data}
+
+    return contrarian_node
 
 
-def synthesizer_node(state: dict) -> dict:
-    """Synthesizer council node (Llama 70B)."""
-    as_of = state["as_of"]
-    strategist_vote = state.get("strategist_vote", {})
-    contrarian_vote = state.get("contrarian_vote", {})
-    current_portfolio = state.get("current_portfolio", {})
-    round_num = state.get("council_round", 1)
+def make_synthesizer_node(store=None):
+    """Factory that returns a Synthesizer node function.
 
-    logger.info(f"[Synthesizer] Mediating round {round_num}")
-    agent = _get_synthesizer()
+    Args:
+        store: DataStore instance for persisting votes, or None to skip persistence.
+    """
+    def synthesizer_node(state: dict) -> dict:
+        as_of = state["as_of"]
+        strategist_vote = state.get("strategist_vote", {})
+        contrarian_vote = state.get("contrarian_vote", {})
+        current_portfolio = state.get("current_portfolio", {})
+        round_num = state.get("council_round", 1)
 
-    vote = agent.generate_vote(
-        strategist_vote, contrarian_vote, current_portfolio, as_of, round_num
-    )
+        logger.info(f"[Synthesizer] Mediating round {round_num}")
+        agent = _get_synthesizer()
 
-    logger.info(f"[Synthesizer] Final conviction: {vote.overall_conviction:.2f}")
-    logger.info(f"[Synthesizer] Decision: {vote.summary[:100]}")
+        vote = agent.generate_vote(
+            strategist_vote, contrarian_vote, current_portfolio, as_of, round_num
+        )
+        vote_data = vote.model_dump()
 
-    return {"synthesizer_decision": vote.model_dump()}
+        logger.info(f"[Synthesizer] Final conviction: {vote.overall_conviction:.2f}")
+        logger.info(f"[Synthesizer] Decision: {vote.summary[:100]}")
+
+        if store:
+            try:
+                store.store_council_vote(
+                    run_id=state["run_id"],
+                    vote={
+                        "agent_name": vote_data["agent_name"],
+                        "as_of": as_of.isoformat(),
+                        "overall_conviction": vote_data["overall_conviction"],
+                        "views": vote_data["views"],
+                        "summary": vote_data["summary"],
+                        "model_used": vote_data["model_used"],
+                    },
+                    round_number=round_num,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist council vote: {e}")
+
+        return {"synthesizer_decision": vote_data}
+
+    return synthesizer_node
 
 
 # ---------------------------------------------------------------------------
