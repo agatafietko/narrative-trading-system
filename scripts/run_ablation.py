@@ -33,7 +33,7 @@ def run_graph_strategy(graph_variant: str):
     """Create a strategy function that uses a LangGraph workflow."""
 
     def strategy_fn(as_of, current_weights, nav, store):
-        graph = get_graph(graph_variant)
+        graph = get_graph(graph_variant, store=store)
         initial_state = {
             "run_id": generate_run_id(),
             "as_of": as_of,
