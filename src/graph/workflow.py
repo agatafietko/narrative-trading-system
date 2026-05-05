@@ -150,20 +150,23 @@ def build_minimal_graph() -> StateGraph:
     return builder.compile()
 
 
-def build_no_narrative_graph() -> StateGraph:
+def build_no_narrative_graph(store=None) -> StateGraph:
     """Build graph without narrative/sentiment agents (ablation).
 
     Uses Macro Sentinel + Market Technician -> full council debate.
     Measures: does narrative data add value?
+
+    Args:
+        store: Optional DataStore for persisting council votes.
     """
     builder = StateGraph(TradingState)
 
     builder.add_node("macro_sentinel", macro_sentinel_node)
     builder.add_node("market_technician", market_technician_node)
     builder.add_node("signal_aggregator", signal_aggregator_node)
-    builder.add_node("strategist", make_strategist_node(None))
-    builder.add_node("contrarian", make_contrarian_node(None))
-    builder.add_node("synthesizer", make_synthesizer_node(None))
+    builder.add_node("strategist", make_strategist_node(store))
+    builder.add_node("contrarian", make_contrarian_node(store))
+    builder.add_node("synthesizer", make_synthesizer_node(store))
     builder.add_node("portfolio_constructor", portfolio_constructor_node)
     builder.add_node("order_manager", order_manager_node)
 
@@ -204,11 +207,11 @@ def _single_agent_constructor_node(state: dict) -> dict:
 # Graph registry for easy selection
 # ---------------------------------------------------------------------------
 
-# "full" is intentionally absent — it requires a store parameter and is handled
-# explicitly in get_graph. The registry contains only parameter-free builders.
+# "full" and "no_narrative" are intentionally absent — they require a store
+# parameter and are handled explicitly in get_graph.
+# The registry contains only parameter-free builders.
 GRAPH_REGISTRY = {
     "minimal": build_minimal_graph,
-    "no_narrative": build_no_narrative_graph,
 }
 
 
@@ -217,14 +220,16 @@ def get_graph(variant: str = "full", store=None):
 
     Args:
         variant: One of "full", "minimal", "no_narrative".
-        store: Optional DataStore for council vote persistence (full graph only).
-               Ignored for "minimal" and "no_narrative" variants.
+        store: Optional DataStore for council vote persistence.
+               Ignored for the "minimal" variant (single-agent, no debate).
     """
     if variant == "full":
         return build_full_graph(store=store)
+    if variant == "no_narrative":
+        return build_no_narrative_graph(store=store)
     if variant not in GRAPH_REGISTRY:
         raise ValueError(
             f"Unknown graph variant: {variant!r}. "
-            f"Options: {['full'] + list(GRAPH_REGISTRY.keys())}"
+            f"Options: {['full', 'no_narrative'] + list(GRAPH_REGISTRY.keys())}"
         )
     return GRAPH_REGISTRY[variant]()

@@ -31,11 +31,12 @@ from src.utils.reproducibility import generate_run_id, set_global_seed
 
 def run_graph_strategy(graph_variant: str):
     """Create a strategy function that uses a LangGraph workflow."""
+    run_id = generate_run_id()  # stable across all rebalance dates for this variant run
 
     def strategy_fn(as_of, current_weights, nav, store):
         graph = get_graph(graph_variant, store=store)
         initial_state = {
-            "run_id": generate_run_id(),
+            "run_id": run_id,
             "as_of": as_of,
             "current_portfolio": current_weights,
             "nav": nav,
