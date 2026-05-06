@@ -8,7 +8,10 @@ from __future__ import annotations
 
 from datetime import datetime
 
+from src.agents.council.behavioral_skeptic import BehavioralSkeptic
 from src.agents.council.contrarian import Contrarian
+from src.agents.council.quant import Quant
+from src.agents.council.risk_manager import RiskManager
 from src.agents.council.strategist import Strategist
 from src.agents.council.synthesizer import Synthesizer
 from src.agents.execution.order_manager import apply_orders_to_portfolio, generate_orders
@@ -25,6 +28,9 @@ _macro_sentinel = None
 _strategist = None
 _contrarian = None
 _synthesizer = None
+_risk_manager = None
+_quant = None
+_behavioral_skeptic = None
 
 
 def _get_macro_sentinel() -> MacroSentinel:
@@ -53,6 +59,27 @@ def _get_synthesizer() -> Synthesizer:
     if _synthesizer is None:
         _synthesizer = Synthesizer()
     return _synthesizer
+
+
+def _get_risk_manager() -> RiskManager:
+    global _risk_manager
+    if _risk_manager is None:
+        _risk_manager = RiskManager()
+    return _risk_manager
+
+
+def _get_quant() -> Quant:
+    global _quant
+    if _quant is None:
+        _quant = Quant()
+    return _quant
+
+
+def _get_behavioral_skeptic() -> BehavioralSkeptic:
+    global _behavioral_skeptic
+    if _behavioral_skeptic is None:
+        _behavioral_skeptic = BehavioralSkeptic()
+    return _behavioral_skeptic
 
 
 # ---------------------------------------------------------------------------
@@ -240,6 +267,129 @@ def make_contrarian_node(store=None):
     return contrarian_node
 
 
+def make_risk_manager_node(store=None):
+    """Factory that returns a Risk Manager node function."""
+    def risk_manager_node(state: dict) -> dict:
+        as_of = state["as_of"]
+        signals = state.get("signals", [])
+        strategist_vote = state.get("strategist_vote", {})
+        contrarian_vote = state.get("contrarian_vote", {})
+        current_portfolio = state.get("current_portfolio", {})
+        round_num = state.get("council_round", 1)
+
+        logger.info("[Risk Manager] Assessing tail risk")
+        agent = _get_risk_manager()
+        vote = agent.generate_vote(
+            signals, strategist_vote, contrarian_vote, current_portfolio, as_of
+        )
+        vote_data = vote.model_dump()
+
+        logger.info(f"[Risk Manager] Conviction: {vote.overall_conviction:.2f}")
+
+        if store is not None:
+            try:
+                store.store_council_vote(
+                    run_id=state["run_id"],
+                    vote={
+                        "agent_name": vote_data["agent_name"],
+                        "as_of": as_of.isoformat(),
+                        "overall_conviction": vote_data["overall_conviction"],
+                        "views": vote_data["views"],
+                        "summary": vote_data["summary"],
+                        "model_used": vote_data["model_used"],
+                    },
+                    round_number=round_num,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist risk_manager vote: {e}")
+
+        return {"risk_manager_vote": vote_data}
+
+    return risk_manager_node
+
+
+def make_quant_node(store=None):
+    """Factory that returns a Quant node function."""
+    def quant_node(state: dict) -> dict:
+        as_of = state["as_of"]
+        signals = state.get("signals", [])
+        strategist_vote = state.get("strategist_vote", {})
+        contrarian_vote = state.get("contrarian_vote", {})
+        current_portfolio = state.get("current_portfolio", {})
+        round_num = state.get("council_round", 1)
+
+        logger.info("[Quant] Computing systematic view")
+        agent = _get_quant()
+        vote = agent.generate_vote(
+            signals, strategist_vote, contrarian_vote, current_portfolio, as_of
+        )
+        vote_data = vote.model_dump()
+
+        logger.info(f"[Quant] Conviction: {vote.overall_conviction:.2f}")
+
+        if store is not None:
+            try:
+                store.store_council_vote(
+                    run_id=state["run_id"],
+                    vote={
+                        "agent_name": vote_data["agent_name"],
+                        "as_of": as_of.isoformat(),
+                        "overall_conviction": vote_data["overall_conviction"],
+                        "views": vote_data["views"],
+                        "summary": vote_data["summary"],
+                        "model_used": vote_data["model_used"],
+                    },
+                    round_number=round_num,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist quant vote: {e}")
+
+        return {"quant_vote": vote_data}
+
+    return quant_node
+
+
+def make_behavioral_skeptic_node(store=None):
+    """Factory that returns a Behavioral Skeptic node function."""
+    def behavioral_skeptic_node(state: dict) -> dict:
+        as_of = state["as_of"]
+        signals = state.get("signals", [])
+        strategist_vote = state.get("strategist_vote", {})
+        contrarian_vote = state.get("contrarian_vote", {})
+        current_portfolio = state.get("current_portfolio", {})
+        round_num = state.get("council_round", 1)
+
+        logger.info("[Behavioral Skeptic] Challenging crowd positioning")
+        agent = _get_behavioral_skeptic()
+        vote = agent.generate_vote(
+            signals, strategist_vote, contrarian_vote, current_portfolio, as_of
+        )
+        vote_data = vote.model_dump()
+
+        logger.info(f"[Behavioral Skeptic] Conviction: {vote.overall_conviction:.2f}")
+
+        if store is not None:
+            try:
+                store.store_council_vote(
+                    run_id=state["run_id"],
+                    vote={
+                        "agent_name": vote_data["agent_name"],
+                        "as_of": as_of.isoformat(),
+                        "overall_conviction": vote_data["overall_conviction"],
+                        "views": vote_data["views"],
+                        "summary": vote_data["summary"],
+                        "model_used": vote_data["model_used"],
+                    },
+                    round_number=round_num,
+                )
+            except Exception as e:
+                logger.warning(f"Failed to persist behavioral_skeptic vote: {e}")
+
+        return {"behavioral_skeptic_vote": vote_data}
+
+    return behavioral_skeptic_node
+
+
 def make_synthesizer_node(store=None):
     """Factory that returns a Synthesizer node function.
 
@@ -257,7 +407,14 @@ def make_synthesizer_node(store=None):
         agent = _get_synthesizer()
 
         vote = agent.generate_vote(
-            strategist_vote, contrarian_vote, current_portfolio, as_of, round_num
+            strategist_vote,
+            contrarian_vote,
+            state.get("risk_manager_vote", {}),
+            state.get("quant_vote", {}),
+            state.get("behavioral_skeptic_vote", {}),
+            current_portfolio,
+            as_of,
+            round_num,
         )
         vote_data = vote.model_dump()
 
