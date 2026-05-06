@@ -35,12 +35,15 @@ def _get_database_url() -> str:
     url = os.getenv("DATABASE_URL", "")
     if url:
         return url
-    # Fall back to Streamlit secrets (for Streamlit Cloud deployment)
+    # Fall back to Streamlit secrets only when running inside Streamlit
     try:
-        import streamlit as st
-        return st.secrets.get("DATABASE_URL", "")
+        from streamlit.runtime import exists as st_runtime_exists
+        if st_runtime_exists():
+            import streamlit as st
+            return st.secrets.get("DATABASE_URL", "")
     except Exception:
-        return ""
+        pass
+    return ""
 
 
 def _detect_backend() -> str:
@@ -519,13 +522,12 @@ class DataStore:
         """Get all distinct run IDs, ordered by the embedded timestamp (newest first)."""
         # Run IDs all contain a YYYYMMDD_HHMMSS segment. Extract it for correct
         # chronological ordering regardless of prefix (run_ vs ablation_full_run_, etc.)
-        query = """
+        query = self._q("""
             SELECT run_id
             FROM portfolio_snapshots
             GROUP BY run_id
-            ORDER BY substring(run_id FROM '\\d{8}_\\d{6}') DESC NULLS LAST,
-                     run_id DESC
-        """
+            ORDER BY run_id DESC
+        """)
         with self._connect() as conn:
             rows = self._fetchall_dicts(conn, query)
         return [r["run_id"] for r in rows]

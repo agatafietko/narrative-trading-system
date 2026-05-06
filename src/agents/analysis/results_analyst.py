@@ -53,6 +53,18 @@ class ResultsAnalyst:
         self.prompt_template = PROMPT_PATH.read_text()
         self._client = None
 
+    def _get_api_key(self) -> str:
+        """Get Anthropic API key from env or Streamlit secrets."""
+        import os
+        key = os.getenv("ANTHROPIC_API_KEY", "")
+        if not key:
+            try:
+                import streamlit as st
+                key = st.secrets.get("ANTHROPIC_API_KEY", "")
+            except Exception:
+                pass
+        return key
+
     def _get_client(self):
         if self._client is not None:
             return self._client
@@ -61,6 +73,7 @@ class ResultsAnalyst:
             model="claude-sonnet-4-20250514",
             temperature=0,
             max_tokens=1000,
+            anthropic_api_key=self._get_api_key(),
         )
         return self._client
 
@@ -97,4 +110,4 @@ class ResultsAnalyst:
             return result
         except Exception as e:
             logger.error(f"ResultsAnalyst failed for mode {mode}: {e}")
-            return "Analysis unavailable — check your ANTHROPIC_API_KEY and try again."
+            return f"Analysis unavailable: {type(e).__name__}: {e}"

@@ -89,10 +89,15 @@ class BehavioralSkeptic(BaseAgent):
                     reasoning="No behavioral signal",
                 ))
 
+        # Hard cap: behavioral signals are noisy — conviction above 0.55 requires
+        # genuine sentiment extremes that rarely occur in normal markets.
+        raw_conviction = parsed.get("overall_conviction", 0.5)
+        capped_conviction = min(raw_conviction, 0.55)
+
         return CouncilVote(
             agent_name="behavioral_skeptic",
             model_used=response["model_used"],
-            overall_conviction=parsed.get("overall_conviction", 0.5),
+            overall_conviction=capped_conviction,
             views=views,
             summary=parsed.get("behavioral_thesis", ""),
         )
