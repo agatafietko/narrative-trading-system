@@ -15,9 +15,16 @@ START
                                                     |
                                                     v
                                               Contrarian (Claude)
-                                                    |
-                                                    v
-                                              Synthesizer (DeepSeek-V3)
+                                             /      |      \
+                                            /       |       \  (parallel fan-out)
+                                           v        v        v
+                                      Risk Mgr    Quant   Behavioral
+                                      (Claude)  (GPT-4o)  Skeptic
+                                           \       |       /  (fan-in)
+                                            \      |      /
+                                             v     v     v
+                                              Synthesizer
+                                              (GPT-4o mini)
                                                 /       \
                                       (low conviction)  (consensus)
                                            |                |
@@ -27,11 +34,21 @@ START
                                                             v
                                                       Order Manager
                                                             |
-                                                            v
-                                                    Backtest Evaluator (GPT-4o)
-                                                            |
                                                            END
 ```
+
+### The Jury (6-member council)
+
+| Juror | Model | Role |
+|-------|-------|------|
+| **Strategist** | GPT-4o | Proposes the investment thesis from all signals |
+| **Contrarian** | Claude Sonnet | Challenges the thesis — finds crowded trades and missed risks |
+| **Risk Manager** | Claude Sonnet | Stress-tests tail risk and concentration (parallel) |
+| **Quant** | GPT-4o mini | Pure signal-driven view, ignores narrative (parallel) |
+| **Behavioral Skeptic** | GPT-4o | Challenges crowd positioning and sentiment consensus (parallel) |
+| **Synthesizer** | GPT-4o mini | Mediates all 5 votes into a final portfolio decision |
+
+The three specialist jurors (Risk Manager, Quant, Behavioral Skeptic) run in parallel after the Contrarian. The Synthesizer waits for all three before producing a verdict. If the Synthesizer's conviction is below 0.6, the council loops back for another round (max 2 rounds).
 
 ## Investment Universe
 
@@ -65,10 +82,9 @@ python scripts/run_ablation.py
 
 | Key | Agent(s) | Required? |
 |-----|----------|-----------|
-| `OPENAI_API_KEY` | Macro Sentinel, Strategist, Evaluator | Yes (for LLM agents) |
-| `ANTHROPIC_API_KEY` | Narrative Analyst, Contrarian | Yes (for LLM agents) |
-| `GOOGLE_API_KEY` | Sentiment Scout | Yes (for LLM agents) |
-| `DEEPSEEK_API_KEY` | Synthesizer (DeepSeek-V3) | Yes (for LLM agents) |
+| `OPENAI_API_KEY` | Macro Sentinel, Strategist, Quant, Behavioral Skeptic, Synthesizer, Evaluator | Yes |
+| `ANTHROPIC_API_KEY` | Narrative Analyst, Contrarian, Risk Manager | Yes |
+| `GOOGLE_API_KEY` | Sentiment Scout (Gemini) | Yes |
 | `FRED_API_KEY` | FRED macroeconomic data fetcher | Yes (free at fred.stlouisfed.org) |
 | `FINNHUB_API_KEY` | Finnhub news & sentiment fetcher | Yes (free tier at finnhub.io) |
 | `NEWSAPI_KEY` | News fetcher (legacy) | Optional |
@@ -95,7 +111,7 @@ python scripts/run_ablation.py
 
 ## Live Dashboard
 
-The system includes a Streamlit dashboard for visualizing results.
+The system includes a Streamlit dashboard with a **Jury Duty** tab showing all 6 juror cards — conviction scores, theses, and per-instrument views — for every run stored in Supabase.
 
 ```bash
 # Run locally
@@ -143,7 +159,7 @@ Go to **Actions → Daily Backtest Run → Run workflow**. You get a mode dropdo
 | `technical_momentum` | RSI/MACD/trend-scoring strategy only | No | Free |
 | `sixty_forty` | 60% equities / 40% bonds benchmark only | No | Free |
 | `equal_weight` | Equal weight across all 11 instruments only | No | Free |
-| `full_system` | Complete multi-agent council — all 4 LLMs debate and produce a portfolio | Yes | ~$0.10–0.50 per run |
+| `full_system` | Complete 6-juror council — GPT-4o + Claude debate in parallel, Synthesizer arbitrates | Yes | ~$0.20–0.80 per run |
 
 > **Tip:** Use `baselines_only` to build up run history cheaply. Use `full_system` when you want council debate data (agent reasoning, conviction scores, trade rationale) to show in the dashboard.
 
@@ -155,10 +171,9 @@ Add these under **Settings → Secrets and variables → Actions**:
 | `DATABASE_URL` | All jobs — Supabase connection string |
 | `FRED_API_KEY` | fetch-data job — macroeconomic indicators |
 | `FINNHUB_API_KEY` | fetch-data job — company & market news |
-| `OPENAI_API_KEY` | Full system — Macro Sentinel, Strategist, Evaluator |
-| `ANTHROPIC_API_KEY` | Full system — Narrative Analyst, Contrarian |
+| `OPENAI_API_KEY` | Full system — Macro Sentinel, Strategist, Quant, Behavioral Skeptic, Synthesizer, Evaluator |
+| `ANTHROPIC_API_KEY` | Full system — Narrative Analyst, Contrarian, Risk Manager |
 | `GOOGLE_API_KEY` | Full system — Sentiment Scout (Gemini) |
-| `DEEPSEEK_API_KEY` | Full system — Synthesizer (DeepSeek-V3) |
 
 ## Project Structure
 
