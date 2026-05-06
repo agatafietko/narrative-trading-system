@@ -760,6 +760,39 @@ def page_jury():
                 if display_cols:
                     st.dataframe(vdf[display_cols], hide_index=True, use_container_width=True)
 
+    # ── Explain this jury verdict ──────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    cache_key = f"jury_explain_{selected_run}_{selected_date}"
+    if cache_key not in st.session_state:
+        st.session_state[cache_key] = None
+
+    if date_votes:
+        if st.button("🧠 Explain this jury verdict", key=f"btn_{cache_key}"):
+            jury_data = {
+                "selected_date": selected_date,
+                "avg_conviction": avg_conviction,
+                "consensus_reached": consensus,
+                "votes": [
+                    {
+                        "agent_name": v["agent_name"],
+                        "overall_conviction": v.get("overall_conviction", 0),
+                        "summary": v.get("summary", ""),
+                        "model_used": v.get("model_used", ""),
+                    }
+                    for v in date_votes
+                ],
+            }
+            with st.spinner("Analyzing jury verdict..."):
+                try:
+                    from src.agents.analysis.results_analyst import ResultsAnalyst
+                    analyst = ResultsAnalyst()
+                    st.session_state[cache_key] = analyst.explain("jury_duty", jury_data)
+                except Exception as e:
+                    st.session_state[cache_key] = f"Analysis unavailable: {e}"
+
+        if st.session_state[cache_key]:
+            st.info(st.session_state[cache_key])
+
 
 # ── Page: Trade History ───────────────────────────────────────────────────────
 
