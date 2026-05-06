@@ -42,6 +42,24 @@ council:
     temperature: 0
     max_tokens: 3000
 
+  risk_manager:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    temperature: 0
+    max_tokens: 3000
+
+  quant:
+    provider: openai
+    model: gpt-4o-mini
+    temperature: 0
+    max_tokens: 3000
+
+  behavioral_skeptic:
+    provider: openai
+    model: gpt-4o
+    temperature: 0
+    max_tokens: 3000
+
 feedback:
   backtest_evaluator:
     provider: openai
