@@ -278,9 +278,10 @@ def make_risk_manager_node(store=None):
         round_num = state.get("council_round", 1)
 
         logger.info("[Risk Manager] Assessing tail risk")
+        data_store = DataStore()
         agent = _get_risk_manager()
         vote = agent.generate_vote(
-            signals, strategist_vote, contrarian_vote, current_portfolio, as_of
+            signals, strategist_vote, contrarian_vote, current_portfolio, as_of, data_store
         )
         vote_data = vote.model_dump()
 
@@ -319,9 +320,10 @@ def make_quant_node(store=None):
         round_num = state.get("council_round", 1)
 
         logger.info("[Quant] Computing systematic view")
+        data_store = DataStore()
         agent = _get_quant()
         vote = agent.generate_vote(
-            signals, strategist_vote, contrarian_vote, current_portfolio, as_of
+            signals, strategist_vote, contrarian_vote, current_portfolio, as_of, data_store
         )
         vote_data = vote.model_dump()
 
@@ -360,9 +362,10 @@ def make_behavioral_skeptic_node(store=None):
         round_num = state.get("council_round", 1)
 
         logger.info("[Behavioral Skeptic] Challenging crowd positioning")
+        data_store = DataStore()
         agent = _get_behavioral_skeptic()
         vote = agent.generate_vote(
-            signals, strategist_vote, contrarian_vote, current_portfolio, as_of
+            signals, strategist_vote, contrarian_vote, current_portfolio, as_of, data_store
         )
         vote_data = vote.model_dump()
 
