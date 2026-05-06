@@ -659,6 +659,32 @@ def page_portfolio():
             st.dataframe(tdf, hide_index=True, use_container_width=True,
                          column_config={"Side": st.column_config.TextColumn(width="small")})
 
+    # ── Explain this performance ───────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    perf_cache_key = f"perf_explain_{selected_run}"
+    if perf_cache_key not in st.session_state:
+        st.session_state[perf_cache_key] = None
+
+    if st.button("🧠 Explain this performance", key=f"btn_{perf_cache_key}"):
+        perf_data = {
+            "run_id": selected_run,
+            "total_return": float(total_ret),
+            "sharpe_ratio": float(sharpe),
+            "max_drawdown": float(max_dd),
+            "total_cost_usd": float(total_cost),
+            "initial_capital": 1_000_000,
+        }
+        with st.spinner("Analyzing performance..."):
+            try:
+                from src.agents.analysis.results_analyst import ResultsAnalyst
+                analyst = ResultsAnalyst()
+                st.session_state[perf_cache_key] = analyst.explain("performance", perf_data)
+            except Exception as e:
+                st.session_state[perf_cache_key] = f"Analysis unavailable: {e}"
+
+    if st.session_state[perf_cache_key]:
+        st.info(st.session_state[perf_cache_key])
+
 
 # ── Page: Jury Duty ───────────────────────────────────────────────────────────
 
