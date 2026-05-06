@@ -14,7 +14,10 @@ from langgraph.graph import END, START, StateGraph
 
 from src.graph.nodes import (
     macro_sentinel_node,
+    make_behavioral_skeptic_node,
     make_contrarian_node,
+    make_quant_node,
+    make_risk_manager_node,
     make_strategist_node,
     make_synthesizer_node,
     market_technician_node,
@@ -78,6 +81,9 @@ def build_full_graph(store=None) -> StateGraph:
     builder.add_node("strategist", make_strategist_node(store))
     builder.add_node("contrarian", make_contrarian_node(store))
     builder.add_node("synthesizer", make_synthesizer_node(store))
+    builder.add_node("risk_manager", make_risk_manager_node(store))
+    builder.add_node("quant", make_quant_node(store))
+    builder.add_node("behavioral_skeptic", make_behavioral_skeptic_node(store))
 
     # Layer 3: Execution nodes
     builder.add_node("portfolio_constructor", portfolio_constructor_node)
@@ -98,7 +104,14 @@ def build_full_graph(store=None) -> StateGraph:
     # Edges: aggregator -> council debate (sequential)
     builder.add_edge("signal_aggregator", "strategist")
     builder.add_edge("strategist", "contrarian")
-    builder.add_edge("contrarian", "synthesizer")
+    # Fan-out: contrarian -> 3 specialist jurors in parallel
+    builder.add_edge("contrarian", "risk_manager")
+    builder.add_edge("contrarian", "quant")
+    builder.add_edge("contrarian", "behavioral_skeptic")
+    # Fan-in: all 3 specialists must complete before Synthesizer runs
+    builder.add_edge("risk_manager", "synthesizer")
+    builder.add_edge("quant", "synthesizer")
+    builder.add_edge("behavioral_skeptic", "synthesizer")
 
     # Conditional edge: synthesizer -> consensus check
     builder.add_conditional_edges(
@@ -167,6 +180,9 @@ def build_no_narrative_graph(store=None) -> StateGraph:
     builder.add_node("strategist", make_strategist_node(store))
     builder.add_node("contrarian", make_contrarian_node(store))
     builder.add_node("synthesizer", make_synthesizer_node(store))
+    builder.add_node("risk_manager", make_risk_manager_node(store))
+    builder.add_node("quant", make_quant_node(store))
+    builder.add_node("behavioral_skeptic", make_behavioral_skeptic_node(store))
     builder.add_node("portfolio_constructor", portfolio_constructor_node)
     builder.add_node("order_manager", order_manager_node)
 
@@ -176,7 +192,12 @@ def build_no_narrative_graph(store=None) -> StateGraph:
     builder.add_edge("market_technician", "signal_aggregator")
     builder.add_edge("signal_aggregator", "strategist")
     builder.add_edge("strategist", "contrarian")
-    builder.add_edge("contrarian", "synthesizer")
+    builder.add_edge("contrarian", "risk_manager")
+    builder.add_edge("contrarian", "quant")
+    builder.add_edge("contrarian", "behavioral_skeptic")
+    builder.add_edge("risk_manager", "synthesizer")
+    builder.add_edge("quant", "synthesizer")
+    builder.add_edge("behavioral_skeptic", "synthesizer")
     builder.add_conditional_edges(
         "synthesizer",
         check_consensus,
