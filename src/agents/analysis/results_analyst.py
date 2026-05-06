@@ -6,7 +6,6 @@ Uses Claude Sonnet hardcoded (not swappable in ablations).
 from __future__ import annotations
 
 import json
-import os
 from pathlib import Path
 
 from src.utils.logging import get_logger
