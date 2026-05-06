@@ -983,6 +983,24 @@ def page_ablation():
         rows.append(row)
     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
 
+    # ── Explain these results ──────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    abl_cache_key = "ablation_explain"
+    if abl_cache_key not in st.session_state:
+        st.session_state[abl_cache_key] = None
+
+    if st.button("🧠 Explain these results", key=f"btn_{abl_cache_key}"):
+        with st.spinner("Analyzing ablation results..."):
+            try:
+                from src.agents.analysis.results_analyst import ResultsAnalyst
+                analyst = ResultsAnalyst()
+                st.session_state[abl_cache_key] = analyst.explain("ablation", results)
+            except Exception as e:
+                st.session_state[abl_cache_key] = f"Analysis unavailable: {e}"
+
+    if st.session_state[abl_cache_key]:
+        st.info(st.session_state[abl_cache_key])
+
 
 # ── Page: Architecture ────────────────────────────────────────────────────────
 
