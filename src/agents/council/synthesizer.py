@@ -44,27 +44,22 @@ class Synthesizer(BaseAgent):
         self,
         strategist_vote: dict,
         contrarian_vote: dict,
+        risk_manager_vote: dict,
+        quant_vote: dict,
+        behavioral_skeptic_vote: dict,
         current_portfolio: dict[str, float],
         as_of: datetime,
         round_number: int = 1,
     ) -> CouncilVote:
-        """Synthesize the Strategist's and Contrarian's views into a final decision.
-
-        Args:
-            strategist_vote: The Strategist's CouncilVote as a dict.
-            contrarian_vote: The Contrarian's CouncilVote as a dict.
-            current_portfolio: Current portfolio weights.
-            as_of: Current timestamp.
-            round_number: Current debate round (1 or 2).
-
-        Returns:
-            CouncilVote with the final consensus.
-        """
+        """Synthesize all five jurors' views into a final decision."""
         prompt = self.prompt_template.format(
             as_of=as_of.strftime("%Y-%m-%d"),
             current_portfolio=json.dumps(current_portfolio, indent=2),
             strategist_vote=json.dumps(strategist_vote, indent=2, default=str),
             contrarian_vote=json.dumps(contrarian_vote, indent=2, default=str),
+            risk_manager_vote=json.dumps(risk_manager_vote, indent=2, default=str),
+            quant_vote=json.dumps(quant_vote, indent=2, default=str),
+            behavioral_skeptic_vote=json.dumps(behavioral_skeptic_vote, indent=2, default=str),
             round_number=round_number,
             max_rounds=self.max_rounds,
         )
