@@ -9,9 +9,7 @@
     "calmar_ratio": 0.21756129279709177,
     "hit_rate": 0.36951754385964913,
     "total_costs": 0.0,
-    "num_periods": 1824,
-    "date_range": "2021-01-01 to 2024-12-31",
-    "note": "Buy-and-hold baseline, no rebalancing costs"
+    "num_periods": 1824
   },
   "equal_weight": {
     "total_return": 1.2623800635936187,
@@ -23,9 +21,7 @@
     "calmar_ratio": 0.2989082683987965,
     "hit_rate": 0.5202850877192983,
     "total_costs": 0.0,
-    "num_periods": 1824,
-    "date_range": "2021-01-01 to 2024-12-31",
-    "note": "Buy-and-hold baseline, no rebalancing costs"
+    "num_periods": 1824
   },
   "random": {
     "total_return": -0.5179679300987021,
@@ -37,19 +33,31 @@
     "calmar_ratio": -0.1674163715322977,
     "hit_rate": 0.3678728070175439,
     "total_costs": 0.0,
-    "num_periods": 1824,
-    "date_range": "2021-01-01 to 2024-12-31",
-    "note": "Random Dirichlet weights, buy-and-hold, no rebalancing costs"
+    "num_periods": 1824
+  },
+  "minimal": {
+    "total_return": -0.014621790852582639,
+    "annualized_return": -0.001602125674792454,
+    "annualized_volatility": 0.00969621366130578,
+    "sharpe_ratio": -0.16050891499713926,
+    "sortino_ratio": -0.028926633612628542,
+    "max_drawdown": -0.043696760011426,
+    "calmar_ratio": -0.03561657051803555,
+    "hit_rate": 0.010367170626349892,
+    "total_costs": 6838.490000000001,
+    "num_periods": 2315,
+    "date_range": "2026-03-13 to 2026-05-01",
+    "note": "Single agent (Macro Sentinel + Market Technician + Strategist only, no council debate). 8 weekly rebalances."
   },
   "technical_momentum": {
-    "total_return": 0.16902200,
-    "annualized_return": 0.20828600,
-    "annualized_volatility": 0.29651000,
+    "total_return": 0.169022,
+    "annualized_return": 0.208286,
+    "annualized_volatility": 0.29651,
     "sharpe_ratio": 0.7843,
     "sortino_ratio": 1.2862,
-    "max_drawdown": -0.22502900,
+    "max_drawdown": -0.225029,
     "calmar_ratio": 1.0335,
-    "hit_rate": 0.50480800,
+    "hit_rate": 0.504808,
     "total_costs": 192406.01,
     "num_periods": 209,
     "date_range": "2021-01-01 to 2024-12-27",
@@ -57,42 +65,30 @@
   },
   "no_narrative": {
     "total_return": -0.030613,
-    "annualized_return": -0.673484,
+    "annualized_return": null,
     "annualized_volatility": 0.124132,
-    "sharpe_ratio": -8.9433,
-    "sortino_ratio": -11.9033,
+    "sharpe_ratio": null,
+    "sortino_ratio": null,
     "max_drawdown": -0.035624,
-    "calmar_ratio": -31.1626,
+    "calmar_ratio": null,
     "hit_rate": 0.428571,
     "total_costs": 7193.64,
     "num_periods": 8,
     "date_range": "2026-03-13 to 2026-05-01",
-    "note": "Full council debate without Narrative Analyst or Sentiment Scout. 8 weekly rebalances. Annualized metrics unreliable at this sample size."
+    "note": "Full council, no Narrative Analyst or Sentiment Scout. Annualized metrics omitted (n<52)."
   },
   "full": {
     "total_return": -0.0038404358364981794,
-    "annualized_return": -0.00041876886629288457,
-    "annualized_volatility": 0.0010375356857305173,
-    "sharpe_ratio": -0.4031838119324747,
-    "sortino_ratio": -0.03129115939072774,
+    "annualized_return": null,
+    "annualized_volatility": null,
+    "sharpe_ratio": null,
+    "sortino_ratio": null,
     "max_drawdown": -0.0050097084466123485,
-    "calmar_ratio": -0.08350138481046289,
-    "hit_rate": 0.0021598272138228943,
+    "calmar_ratio": null,
+    "hit_rate": null,
     "total_costs": 1921.97,
     "num_periods": 2,
     "date_range": "2026-04-24 to 2026-05-01",
-    "note": "Full multi-agent system, 2 weekly rebalances. Insufficient periods for reliable metrics."
-  },
-  "single_agent_minimal": {
-    "note": "TO BE FILLED — requires valid OpenAI key to run minimal graph variant"
-  },
-  "no_sentiment": {
-    "note": "TO BE FILLED — variant not yet implemented in graph registry"
-  },
-  "no_feedback": {
-    "note": "TO BE FILLED — variant not yet implemented in graph registry"
-  },
-  "homogeneous_gpt4o": {
-    "note": "TO BE FILLED — variant not yet implemented in graph registry"
+    "note": "Full multi-agent system. 2 rebalances only \u2014 annualized metrics unreliable."
   }
 }
