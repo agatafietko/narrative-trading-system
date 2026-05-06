@@ -40,21 +40,21 @@ Do not explain macro reasoning. Cite signal values directly.
 Respond with JSON only:
 
 ```json
-{
+{{
     "overall_conviction": 0.0-1.0,
     "quant_thesis": "2-3 sentence systematic view based purely on signals",
     "momentum_leaders": ["top momentum instruments"],
     "mean_reversion_candidates": ["stretched instruments likely to revert"],
     "views": [
-        {
+        {{
             "instrument": "SP500",
             "direction": "bullish" | "bearish" | "neutral",
             "conviction": 0.0-1.0,
             "target_weight": -0.25 to 0.25,
             "reasoning": "Signal value(s) that drive this position"
-        }
+        }}
     ]
-}
+}}
 ```
 
 Include a view for every instrument in the universe.

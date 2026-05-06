@@ -41,21 +41,21 @@ Your overall_conviction reflects how comfortable you are with the RISK PROFILE, 
 Respond with JSON only:
 
 ```json
-{
+{{
     "overall_conviction": 0.0-1.0,
     "risk_thesis": "2-3 sentence assessment of the overall risk profile",
     "key_risks": ["risk1", "risk2", "risk3"],
     "concentration_warnings": ["any clusters of correlated risk"],
     "views": [
-        {
+        {{
             "instrument": "SP500",
             "direction": "bullish" | "bearish" | "neutral",
             "conviction": 0.0-1.0,
             "target_weight": -0.25 to 0.25,
             "reasoning": "Risk-adjusted reasoning for this position size"
-        }
+        }}
     ]
-}
+}}
 ```
 
 Include a view for every instrument in the universe. Weight down anything with elevated tail risk.

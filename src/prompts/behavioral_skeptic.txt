@@ -41,21 +41,21 @@ You are not a pure contrarian — you may agree with positions where sentiment i
 Respond with JSON only:
 
 ```json
-{
+{{
     "overall_conviction": 0.0-1.0,
     "behavioral_thesis": "2-3 sentence assessment of market psychology and crowd positioning",
     "crowded_trades": ["instruments where positioning is extreme"],
-    "sentiment_extremes": {"instrument": "fear | greed | neutral"},
+    "sentiment_extremes": {{"instrument": "fear | greed | neutral"}},
     "views": [
-        {
+        {{
             "instrument": "SP500",
             "direction": "bullish" | "bearish" | "neutral",
             "conviction": 0.0-1.0,
             "target_weight": -0.25 to 0.25,
             "reasoning": "Behavioral/sentiment reasoning for this position"
-        }
+        }}
     ]
-}
+}}
 ```
 
 Include a view for every instrument in the universe.
