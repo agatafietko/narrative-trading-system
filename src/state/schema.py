@@ -96,6 +96,9 @@ class TradingState(TypedDict):
     # Layer 2: Council deliberation
     strategist_vote: NotRequired[dict]
     contrarian_vote: NotRequired[dict]
+    risk_manager_vote: NotRequired[dict]
+    quant_vote: NotRequired[dict]
+    behavioral_skeptic_vote: NotRequired[dict]
     synthesizer_decision: NotRequired[dict]
     council_round: int
 
