@@ -1089,7 +1089,64 @@ def page_architecture():
             """, unsafe_allow_html=True)
 
 
+# ── Run Analysis ──────────────────────────────────────────────────────────────
+
+def render_run_analysis_button():
+    """Render the full-run analysis button and result panel, visible on all tabs."""
+    if not selected_run:
+        return
+
+    run_cache_key = f"full_run_explain_{selected_run}"
+    if run_cache_key not in st.session_state:
+        st.session_state[run_cache_key] = None
+
+    col_btn, _ = st.columns([2, 5])
+    with col_btn:
+        if st.button("📋 Analyze this run", key=f"btn_{run_cache_key}", use_container_width=True):
+            votes = load_council_votes(selected_run)
+            history = load_portfolio_history(selected_run)
+
+            full_data = {
+                "run_id": selected_run,
+                "votes": [
+                    {
+                        "agent_name": v["agent_name"],
+                        "overall_conviction": v.get("overall_conviction", 0),
+                        "summary": v.get("summary", ""),
+                    }
+                    for v in votes
+                ] if votes else [],
+                "performance": {},
+            }
+
+            if not history.empty and len(history) >= 2:
+                total_ret = history["nav"].iloc[-1] / history["nav"].iloc[0] - 1
+                returns = history["nav"].pct_change().dropna()
+                sharpe = float(returns.mean() / returns.std() * (252 ** 0.5)) if returns.std() > 0 else 0
+                peak = history["nav"].cummax()
+                max_dd = float(((history["nav"] - peak) / peak).min())
+                full_data["performance"] = {
+                    "total_return": float(total_ret),
+                    "sharpe_ratio": sharpe,
+                    "max_drawdown": max_dd,
+                }
+
+            with st.spinner("Writing run analysis..."):
+                try:
+                    from src.agents.analysis.results_analyst import ResultsAnalyst
+                    analyst = ResultsAnalyst()
+                    st.session_state[run_cache_key] = analyst.explain("full_run", full_data)
+                except Exception as e:
+                    st.session_state[run_cache_key] = f"Analysis unavailable: {e}"
+
+    if st.session_state[run_cache_key]:
+        with st.expander("📋 Run Analysis", expanded=True):
+            st.markdown(st.session_state[run_cache_key])
+
+
 # ── Router ────────────────────────────────────────────────────────────────────
+
+render_run_analysis_button()
 
 _p = st.session_state.page
 if   "Overview"     in _p: page_overview()
