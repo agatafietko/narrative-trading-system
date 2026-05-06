@@ -192,6 +192,9 @@ footer { visibility: hidden; }
 .badge-strategist  { background: #dbeafe; color: #1d4ed8; }
 .badge-contrarian  { background: #fce7f3; color: #9d174d; }
 .badge-synthesizer { background: #d1fae5; color: #065f46; }
+.badge-risk        { background: #fee2e2; color: #991b1b; }
+.badge-quant       { background: #fef9c3; color: #854d0e; }
+.badge-skeptic     { background: #ede9fe; color: #5b21b6; }
 
 /* ── Direction badges ── */
 .dir-long  { background: #d1fae5; color: #065f46; padding: 2px 8px;
@@ -273,7 +276,7 @@ PALETTE = [BLUE, GREEN, AMBER, PURPLE, RED, "#06b6d4", "#ec4899"]
 def get_store():
     return DataStore()
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def load_run_ids():
     return get_store().get_all_run_ids()
 
@@ -281,7 +284,7 @@ def load_run_ids():
 def load_portfolio_history(run_id):
     return get_store().get_portfolio_history(run_id)
 
-@st.cache_data(ttl=300)
+@st.cache_data(ttl=60)
 def load_council_votes(run_id):
     return get_store().get_council_votes_for_run(run_id)
 
@@ -352,7 +355,7 @@ def get_valid_runs(run_ids_tuple: tuple):
 NAV_OPTIONS = [
     "🏠  Overview",
     "📊  Portfolio Performance",
-    "⚖️  Agent Council",
+    "⚖️  Jury Duty",
     "📋  Trade History",
     "🔬  Ablation Results",
     "🏗️  Architecture",
@@ -453,6 +456,9 @@ with st.sidebar:
         )
 
     st.divider()
+    if st.button("🔄 Refresh Data", use_container_width=True, help="Clear cached data and reload from database"):
+        st.cache_data.clear()
+        st.rerun()
     st.markdown(
         "<div style='font-size:0.7rem; color:#475569;'>Data refreshes every 5 min<br>"
         "<a href='https://github.com/agatafietko/narrative-trading-system' "
@@ -654,10 +660,10 @@ def page_portfolio():
                          column_config={"Side": st.column_config.TextColumn(width="small")})
 
 
-# ── Page: Agent Council ───────────────────────────────────────────────────────
+# ── Page: Jury Duty ───────────────────────────────────────────────────────────
 
-def page_council():
-    st.markdown("<h2 style='color:#0f172a;font-weight:800;margin-bottom:1.5rem;'>Agent Council Debates</h2>",
+def page_jury():
+    st.markdown("<h2 style='color:#0f172a;font-weight:800;margin-bottom:1.5rem;'>Jury Duty</h2>",
                 unsafe_allow_html=True)
 
     if not selected_run:
@@ -666,11 +672,28 @@ def page_council():
 
     votes = load_council_votes(selected_run)
     if not votes:
-        no_data(
-            "No council votes in this run. The full multi-agent system hasn't run yet.",
-            "Actions → Daily Backtest Run → Run workflow → full_system"
+        # Try to find another run that has council votes
+        all_runs = load_run_ids()
+        run_with_votes = None
+        for rid in all_runs:
+            if rid != selected_run:
+                candidate = load_council_votes(rid)
+                if candidate:
+                    run_with_votes = rid
+                    votes = candidate
+                    break
+
+        if not votes:
+            no_data(
+                "No council votes in this run. The full multi-agent system hasn't run yet.",
+                "Actions → Daily Backtest Run → Run workflow → full_system"
+            )
+            return
+
+        st.info(
+            f"No council votes for the selected run — showing votes from "
+            f"**`{run_with_votes}`** instead (most recent run with council data)."
         )
-        return
 
     dates = sorted(set(v["as_of"] for v in votes), reverse=True)
     selected_date = st.selectbox("Debate date", dates,
@@ -691,14 +714,17 @@ def page_council():
             metric_card("Consensus", "Reached ✓" if consensus else "Debated ↻",
                         "green" if consensus else "amber")
         with col_c:
-            metric_card("Agents", f"{len(date_votes)} / 3 voted")
+            metric_card("Agents", f"{len(date_votes)} / 6 voted")
 
     st.markdown("<br>", unsafe_allow_html=True)
 
     agent_cfg = {
-        "strategist":  ("🎯", "Strategist",  "badge-strategist",  "Proposes investment thesis based on all signals"),
-        "contrarian":  ("⚡", "Contrarian",  "badge-contrarian",  "Challenges the thesis — finds crowded trades and missed risks"),
-        "synthesizer": ("⚖️", "Synthesizer", "badge-synthesizer", "Mediates and produces the final portfolio decision"),
+        "strategist":         ("🎯", "Strategist",         "badge-strategist", "Proposes investment thesis based on all signals"),
+        "contrarian":         ("⚡", "Contrarian",         "badge-contrarian",  "Challenges the thesis — finds crowded trades and missed risks"),
+        "risk_manager":       ("🛡️", "Risk Manager",       "badge-risk",        "Stress-tests tail risk and concentration"),
+        "quant":              ("📐", "Quant",              "badge-quant",       "Pure signal-driven, ignores narrative"),
+        "behavioral_skeptic": ("🧠", "Behavioral Skeptic", "badge-skeptic",     "Challenges crowd positioning and sentiment consensus"),
+        "synthesizer":        ("⚖️", "Synthesizer",        "badge-synthesizer", "Mediates and produces the final portfolio decision"),
     }
 
     for vote in date_votes:
@@ -991,7 +1017,7 @@ def page_architecture():
 _p = st.session_state.page
 if   "Overview"     in _p: page_overview()
 elif "Performance"  in _p: page_portfolio()
-elif "Council"      in _p: page_council()
+elif "Jury"         in _p: page_jury()
 elif "Trade"        in _p: page_trades()
 elif "Ablation"     in _p: page_ablation()
 elif "Architecture" in _p: page_architecture()
