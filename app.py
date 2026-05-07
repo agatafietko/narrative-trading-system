@@ -304,13 +304,22 @@ def load_ablation_results():
 # ── Sidebar helpers ───────────────────────────────────────────────────────────
 
 def parse_run_datetime(run_id: str):
-    """Parse run_20260503_165514_abc → datetime object."""
+    """Extract the embedded YYYYMMDD_HHMMSS timestamp from any run ID.
+
+    Works for all prefix lengths:
+      run_20260503_165514_abc
+      ablation_full_run_20260507_003851_abc
+      ablation_no_sentiment_20260506_120000_abc
+    """
+    import re
     from datetime import datetime
-    try:
-        parts = run_id.split("_")
-        return datetime.strptime(f"{parts[1]}{parts[2]}", "%Y%m%d%H%M%S")
-    except Exception:
-        return None
+    m = re.search(r"(\d{8})_(\d{6})", run_id)
+    if m:
+        try:
+            return datetime.strptime(f"{m.group(1)}{m.group(2)}", "%Y%m%d%H%M%S")
+        except Exception:
+            pass
+    return None
 
 def run_label(run_id: str) -> str:
     dt = parse_run_datetime(run_id)
