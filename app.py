@@ -349,7 +349,7 @@ def get_valid_runs(run_ids_tuple: tuple):
     # get_all_run_ids uses ORDER BY run_id DESC which is alphabetical and wrong
     # when run IDs have different prefixes (e.g. 'ablation_' vs 'run_').
     dated = [(rid, parse_run_datetime(rid)) for rid in run_ids_tuple]
-    dated = [(rid, dt) for rid, dt in dated if dt is not None and dt.year >= 2026]
+    dated = [(rid, dt) for rid, dt in dated if dt is not None]
     dated.sort(key=lambda x: x[1], reverse=True)
 
     result = []
@@ -357,6 +357,10 @@ def get_valid_runs(run_ids_tuple: tuple):
         try:
             h = load_portfolio_history(rid)
             if h.empty or len(h) < 2:
+                continue
+            # Filter by the portfolio data's own date range — not the run ID
+            # timestamp. A run executed in 2026 may cover a 2021-2024 backtest.
+            if pd.to_datetime(h["as_of"].max()).year < 2026:
                 continue
             nav = h["nav"]
             ret = float(nav.iloc[-1] / nav.iloc[0] - 1)
