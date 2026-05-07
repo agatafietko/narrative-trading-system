@@ -13,6 +13,7 @@ from __future__ import annotations
 from langgraph.graph import END, START, StateGraph
 
 from src.graph.nodes import (
+    asset_mapper_node,
     macro_sentinel_node,
     make_behavioral_skeptic_node,
     make_contrarian_node,
@@ -48,6 +49,9 @@ def build_full_graph(store=None) -> StateGraph:
           +---> market_technician -----+---> signal_aggregator
           +---> narrative_analyst -----+          |
           +---> sentiment_scout -------+          v
+                                             asset_mapper
+                                                  |
+                                                  v
                                              strategist
                                                  |
                                                  v
@@ -77,6 +81,9 @@ def build_full_graph(store=None) -> StateGraph:
     # Aggregator (sync point)
     builder.add_node("signal_aggregator", signal_aggregator_node)
 
+    # Asset Mapper (translates signals to per-ticker views before council debate)
+    builder.add_node("asset_mapper", asset_mapper_node)
+
     # Layer 2: Council debate nodes
     builder.add_node("strategist", make_strategist_node(store))
     builder.add_node("contrarian", make_contrarian_node(store))
@@ -101,8 +108,9 @@ def build_full_graph(store=None) -> StateGraph:
     builder.add_edge("narrative_analyst", "signal_aggregator")
     builder.add_edge("sentiment_scout", "signal_aggregator")
 
-    # Edges: aggregator -> council debate (sequential)
-    builder.add_edge("signal_aggregator", "strategist")
+    # Edges: aggregator -> asset mapper -> council debate (sequential)
+    builder.add_edge("signal_aggregator", "asset_mapper")
+    builder.add_edge("asset_mapper", "strategist")
     builder.add_edge("strategist", "contrarian")
     # Fan-out: contrarian -> 3 specialist jurors in parallel
     builder.add_edge("contrarian", "risk_manager")
