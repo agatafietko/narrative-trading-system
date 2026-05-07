@@ -74,7 +74,7 @@ class Quant(BaseAgent):
                 instrument=view_data.get("instrument", ""),
                 direction=view_data.get("direction", "neutral"),
                 conviction=view_data.get("conviction", 0.5),
-                target_weight=view_data.get("target_weight", 0.0),
+                target_weight=max(-0.25, min(0.25, float(view_data.get("target_weight", 0.0)))),
                 reasoning=view_data.get("reasoning", ""),
             ))
 

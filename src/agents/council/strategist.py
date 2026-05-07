@@ -111,8 +111,8 @@ class Strategist(BaseAgent):
             views.append(InstrumentView(
                 instrument=view_data.get("instrument", ""),
                 direction=view_data.get("direction", "neutral"),
-                conviction=view_data.get("conviction", 0.5),
-                target_weight=view_data.get("target_weight", 0.0),
+                conviction=max(0.0, min(1.0, float(view_data.get("conviction", 0.5)))),
+                target_weight=max(-0.25, min(0.25, float(view_data.get("target_weight", 0.0)))),
                 reasoning=view_data.get("reasoning", ""),
             ))
 
