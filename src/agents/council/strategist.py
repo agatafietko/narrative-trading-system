@@ -84,6 +84,12 @@ class Strategist(BaseAgent):
             views = asset_map["payload"]["views"]
             theme = asset_map["payload"].get("dominant_theme", "")
             prompt += "\n\nPRE-MAPPED ASSET VIEWS (Asset Mapper, for reference):\n"
+            prompt += (
+                "ETF proxy → universe mapping: "
+                "SPY=SP500, QQQ=NASDAQ100, IWM=RUSSELL2000, EEM=MSCI_EM, "
+                "TLT=US_10Y, SHY=US_2Y, GLD=GOLD, USO=OIL_WTI, "
+                "UUP=DXY, VIXY=VIX, BTC-USD=BITCOIN\n"
+            )
             prompt += f"Dominant theme: {theme}\n"
             for ticker, score in views.items():
                 if score > 0.1:
