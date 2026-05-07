@@ -185,6 +185,7 @@ def build_no_narrative_graph(store=None) -> StateGraph:
     builder.add_node("macro_sentinel", macro_sentinel_node)
     builder.add_node("market_technician", market_technician_node)
     builder.add_node("signal_aggregator", signal_aggregator_node)
+    builder.add_node("asset_mapper", asset_mapper_node)
     builder.add_node("strategist", make_strategist_node(store))
     builder.add_node("contrarian", make_contrarian_node(store))
     builder.add_node("synthesizer", make_synthesizer_node(store))
@@ -198,7 +199,8 @@ def build_no_narrative_graph(store=None) -> StateGraph:
     builder.add_edge(START, "market_technician")
     builder.add_edge("macro_sentinel", "signal_aggregator")
     builder.add_edge("market_technician", "signal_aggregator")
-    builder.add_edge("signal_aggregator", "strategist")
+    builder.add_edge("signal_aggregator", "asset_mapper")
+    builder.add_edge("asset_mapper", "strategist")
     builder.add_edge("strategist", "contrarian")
     builder.add_edge("contrarian", "risk_manager")
     builder.add_edge("contrarian", "quant")
@@ -232,6 +234,7 @@ def build_no_sentiment_graph(store=None) -> StateGraph:
     builder.add_node("market_technician", market_technician_node)
     builder.add_node("narrative_analyst", narrative_analyst_node)
     builder.add_node("signal_aggregator", signal_aggregator_node)
+    builder.add_node("asset_mapper", asset_mapper_node)
     builder.add_node("strategist", make_strategist_node(store))
     builder.add_node("contrarian", make_contrarian_node(store))
     builder.add_node("synthesizer", make_synthesizer_node(store))
@@ -247,7 +250,8 @@ def build_no_sentiment_graph(store=None) -> StateGraph:
     builder.add_edge("macro_sentinel", "signal_aggregator")
     builder.add_edge("market_technician", "signal_aggregator")
     builder.add_edge("narrative_analyst", "signal_aggregator")
-    builder.add_edge("signal_aggregator", "strategist")
+    builder.add_edge("signal_aggregator", "asset_mapper")
+    builder.add_edge("asset_mapper", "strategist")
     builder.add_edge("strategist", "contrarian")
     builder.add_edge("contrarian", "risk_manager")
     builder.add_edge("contrarian", "quant")
@@ -280,6 +284,7 @@ def build_no_feedback_graph(store=None) -> StateGraph:
     builder.add_node("narrative_analyst", narrative_analyst_node)
     builder.add_node("sentiment_scout", sentiment_scout_node)
     builder.add_node("signal_aggregator", signal_aggregator_node)
+    builder.add_node("asset_mapper", asset_mapper_node)
     # Council nodes get store=None → no feedback injected into prompts
     builder.add_node("strategist", make_strategist_node(None))
     builder.add_node("contrarian", make_contrarian_node(None))
@@ -298,7 +303,8 @@ def build_no_feedback_graph(store=None) -> StateGraph:
     builder.add_edge("market_technician", "signal_aggregator")
     builder.add_edge("narrative_analyst", "signal_aggregator")
     builder.add_edge("sentiment_scout", "signal_aggregator")
-    builder.add_edge("signal_aggregator", "strategist")
+    builder.add_edge("signal_aggregator", "asset_mapper")
+    builder.add_edge("asset_mapper", "strategist")
     builder.add_edge("strategist", "contrarian")
     builder.add_edge("contrarian", "risk_manager")
     builder.add_edge("contrarian", "quant")
@@ -333,6 +339,7 @@ def build_homogeneous_graph(store=None) -> StateGraph:
         narrative_analyst_node as _na,
         sentiment_scout_node as _ss,
         signal_aggregator_node as _sa,
+        asset_mapper_node as _am,
         make_strategist_node as _mkst,
         make_contrarian_node as _mkcn,
         make_synthesizer_node as _mksy,
@@ -349,6 +356,7 @@ def build_homogeneous_graph(store=None) -> StateGraph:
     builder.add_node("narrative_analyst", _na)
     builder.add_node("sentiment_scout", _ss)
     builder.add_node("signal_aggregator", _sa)
+    builder.add_node("asset_mapper", _am)
     builder.add_node("strategist", _mkst(store))
     builder.add_node("contrarian", _mkcn(store))
     builder.add_node("synthesizer", _mksy(store))
@@ -366,7 +374,8 @@ def build_homogeneous_graph(store=None) -> StateGraph:
     builder.add_edge("market_technician", "signal_aggregator")
     builder.add_edge("narrative_analyst", "signal_aggregator")
     builder.add_edge("sentiment_scout", "signal_aggregator")
-    builder.add_edge("signal_aggregator", "strategist")
+    builder.add_edge("signal_aggregator", "asset_mapper")
+    builder.add_edge("asset_mapper", "strategist")
     builder.add_edge("strategist", "contrarian")
     builder.add_edge("contrarian", "risk_manager")
     builder.add_edge("contrarian", "quant")
