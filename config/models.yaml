@@ -23,6 +23,12 @@ gatherers:
   market_technician:
     provider: none  # Deterministic, no LLM
 
+  asset_mapper:
+    provider: anthropic
+    model: claude-sonnet-4-20250514
+    temperature: 0
+    max_tokens: 2000
+
 council:
   strategist:
     provider: openai
