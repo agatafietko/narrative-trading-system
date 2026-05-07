@@ -936,13 +936,41 @@ def page_ablation():
         v = results[strat].get(key, default)
         return default if v is None else v
 
-    # Metric cards for Sharpe (the headline stat)
+    # Sharpe bar chart — handles nulls and many strategies cleanly
     section("Sharpe Ratio by Strategy")
-    cols = st.columns(len(strategies))
-    for i, (strat, name) in enumerate(zip(strategies, clean_names)):
-        sr = _val(strat, "sharpe_ratio")
-        with cols[i]:
-            metric_card(name, f"{sr:.2f}", "green" if sr >= 0.5 else "amber" if sr >= 0 else "red")
+    sharpe_rows = []
+    for strat, name in zip(strategies, clean_names):
+        raw = results[strat].get("sharpe_ratio")
+        sharpe_rows.append({
+            "Strategy": name,
+            "Sharpe": raw if raw is not None else float("nan"),
+            "Available": raw is not None,
+            "Label": f"{raw:.2f}" if raw is not None else "n/a†",
+        })
+    sharpe_rows.sort(key=lambda r: r["Sharpe"] if not (r["Sharpe"] != r["Sharpe"]) else -999)
+    sdf2 = pd.DataFrame(sharpe_rows)
+    bar_colors = [GREEN if s >= 0.5 else AMBER if s >= 0 else RED
+                  for s in sdf2["Sharpe"].fillna(0)]
+    fig_sr = go.Figure(go.Bar(
+        x=sdf2["Sharpe"].fillna(0),
+        y=sdf2["Strategy"],
+        orientation="h",
+        marker_color=bar_colors,
+        marker_line_width=0,
+        text=sdf2["Label"],
+        textposition="outside",
+        hovertemplate="<b>%{y}</b><br>Sharpe: %{text}<extra></extra>",
+    ))
+    fig_sr.add_vline(x=0, line_color="#94a3b8", line_width=1)
+    fig_sr.update_layout(
+        **CHART_LAYOUT,
+        height=max(280, len(strategies) * 42),
+        xaxis_title="Sharpe Ratio",
+        yaxis=dict(autorange="reversed"),
+        margin=dict(l=0, r=60, t=10, b=30),
+    )
+    st.plotly_chart(fig_sr, width="stretch")
+    st.caption("† n/a indicates fewer than 8 weekly rebalances — Sharpe shown as 0 for bar scale only.")
 
     st.markdown("<br>", unsafe_allow_html=True)
     col_l, col_r = st.columns(2)
