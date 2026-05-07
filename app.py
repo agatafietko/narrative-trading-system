@@ -931,11 +931,16 @@ def page_ablation():
     strategies  = list(results.keys())
     clean_names = [label_map.get(s, s.replace("_", " ").title()) for s in strategies]
 
+    def _val(strat, key, default=0):
+        """Get a numeric metric, coercing None → default."""
+        v = results[strat].get(key, default)
+        return default if v is None else v
+
     # Metric cards for Sharpe (the headline stat)
     section("Sharpe Ratio by Strategy")
     cols = st.columns(len(strategies))
     for i, (strat, name) in enumerate(zip(strategies, clean_names)):
-        sr = results[strat].get("sharpe_ratio", 0)
+        sr = _val(strat, "sharpe_ratio")
         with cols[i]:
             metric_card(name, f"{sr:.2f}", "green" if sr >= 0.5 else "amber" if sr >= 0 else "red")
 
@@ -946,12 +951,11 @@ def page_ablation():
         section("Return vs Volatility")
         scatter_data = []
         for strat, name in zip(strategies, clean_names):
-            m = results[strat]
             scatter_data.append({
                 "Strategy": name,
-                "Ann. Return (%)": m.get("annualized_return", 0) * 100,
-                "Ann. Volatility (%)": m.get("annualized_volatility", 0) * 100,
-                "Sharpe": m.get("sharpe_ratio", 0),
+                "Ann. Return (%)": _val(strat, "annualized_return") * 100,
+                "Ann. Volatility (%)": _val(strat, "annualized_volatility") * 100,
+                "Sharpe": _val(strat, "sharpe_ratio"),
             })
         sdf = pd.DataFrame(scatter_data)
         fig = px.scatter(
@@ -966,7 +970,7 @@ def page_ablation():
 
     with col_r:
         section("Total Return Comparison")
-        ret_data = [(label_map.get(s, s), results[s].get("total_return", 0) * 100) for s in strategies]
+        ret_data = [(label_map.get(s, s), _val(s, "total_return") * 100) for s in strategies]
         ret_data.sort(key=lambda x: x[1], reverse=True)
         fig2 = go.Figure(go.Bar(
             x=[r[1] for r in ret_data],
@@ -987,11 +991,11 @@ def page_ablation():
     for metric_key, (label, fmt, _) in metrics_cfg.items():
         row = {"Metric": label}
         for strat, name in zip(strategies, clean_names):
-            val = results[strat].get(metric_key, 0)
+            val = _val(strat, metric_key)
             try:
                 row[name] = f"{val:{fmt}}"
             except (ValueError, TypeError):
-                row[name] = str(val)
+                row[name] = "—"
         rows.append(row)
     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
 
