@@ -684,12 +684,6 @@ def page_portfolio():
         start_dt  = history["as_of"].min()
         end_dt    = history["as_of"].max()
 
-        # Only compute regression for 2026 evaluation window runs
-        _start_year = pd.to_datetime(start_dt).year
-        if _start_year < 2026:
-            st.info("Regression is only shown for 2026 evaluation runs. Select a 2026 run from the sidebar.")
-            mkt = pd.DataFrame()  # skip the rest by falling through to the else branch
-
         from datetime import datetime as _dt
         mkt = store_reg.get_market_data_as_of(
             end_dt if isinstance(end_dt, _dt) else _dt.combine(end_dt, _dt.min.time()),
@@ -816,12 +810,12 @@ def page_portfolio():
                 with rc4: metric_card("t(α)",          f"{t_alpha:.2f} {_stars(p_alpha)}",
                                       "green" if t_alpha > 1.645 else "amber")
 
+                _fmt_dt = lambda d: d.strftime("%b %d, %Y") if hasattr(d, "strftime") else str(d)
                 st.caption(
-                    f"Based on {n} overlapping daily return observations "
-                    f"({start_dt.strftime('%b %d') if hasattr(start_dt,'strftime') else start_dt} – "
-                    f"{end_dt.strftime('%b %d, %Y') if hasattr(end_dt,'strftime') else end_dt}). "
-                    f"p(α)={p_alpha:.3f}. "
-                    "Sig: * p<0.10, ** p<0.05, *** p<0.01 (one-tailed H₀: α ≤ 0)."
+                    f"Based on {n} rebalance-period return observations "
+                    f"({_fmt_dt(start_dt)} – {_fmt_dt(end_dt)}). "
+                    f"p(α) = {p_alpha:.3f}. "
+                    "Sig: * p<0.10  ** p<0.05  *** p<0.01 (one-tailed H₀: α ≤ 0)."
                 )
 
                 # Rolling 30-day beta
