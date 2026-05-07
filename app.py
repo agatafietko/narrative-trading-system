@@ -295,7 +295,11 @@ def load_trade_orders(run_id):
 @st.cache_data(ttl=300)
 def load_ablation_results():
     p = Path("data/ablation_results.json")
-    return json.loads(p.read_text()) if p.exists() else None
+    if not p.exists():
+        return None
+    raw = json.loads(p.read_text())
+    # Strip metadata keys (strings/non-dicts) — only keep strategy result dicts
+    return {k: v for k, v in raw.items() if isinstance(v, dict)}
 
 # ── Sidebar helpers ───────────────────────────────────────────────────────────
 
@@ -897,12 +901,20 @@ def page_ablation():
     # Strategy name cleanup
     label_map = {
         "sixty_forty": "60/40",
+        "sixty_forty_2026": "60/40",
         "equal_weight": "Equal Weight",
+        "equal_weight_2026": "Equal Weight",
         "technical_momentum": "Tech. Momentum",
         "random": "Random",
+        "random_2026": "Random",
         "full": "Full System",
+        "full_system": "Full System",
         "no_narrative": "No Narrative",
-        "minimal": "Minimal",
+        "no_sentiment": "No Sentiment",
+        "no_feedback": "No Feedback",
+        "homogeneous": "Homogeneous GPT-4o",
+        "minimal": "Single Agent",
+        "single_agent_minimal": "Single Agent",
     }
 
     metrics_cfg = {
