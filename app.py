@@ -684,6 +684,12 @@ def page_portfolio():
         start_dt  = history["as_of"].min()
         end_dt    = history["as_of"].max()
 
+        # Only compute regression for 2026 evaluation window runs
+        _start_year = pd.to_datetime(start_dt).year
+        if _start_year < 2026:
+            st.info("Regression is only shown for 2026 evaluation runs. Select a 2026 run from the sidebar.")
+            mkt = pd.DataFrame()  # skip the rest by falling through to the else branch
+
         from datetime import datetime as _dt
         mkt = store_reg.get_market_data_as_of(
             end_dt if isinstance(end_dt, _dt) else _dt.combine(end_dt, _dt.min.time()),
