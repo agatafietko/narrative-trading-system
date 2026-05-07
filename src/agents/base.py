@@ -51,10 +51,17 @@ class BaseAgent:
             agent_name: Human-readable agent name.
             config_path: Path in models.yaml (e.g., 'gatherers.macro_sentinel').
         """
+        import os
         self.agent_name = agent_name
         self.config = load_model_config(config_path)
-        self.provider = self.config["provider"]
-        self.model_name = self.config["model"]
+        # Homogeneous ablation: override all LLM agents to a single model
+        homogeneous = os.environ.get("HOMOGENEOUS_MODEL", "")
+        if homogeneous and self.config.get("provider") not in ("none", None):
+            self.provider = "openai"
+            self.model_name = homogeneous
+        else:
+            self.provider = self.config["provider"]
+            self.model_name = self.config.get("model", "")
         self.temperature = self.config.get("temperature", 0)
         self.max_tokens = self.config.get("max_tokens", 2000)
 

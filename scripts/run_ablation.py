@@ -215,7 +215,8 @@ def main():
         for variant in variants:
             if variant in ("baselines", "technical_momentum"):
                 continue
-            if variant in ("full", "minimal", "no_narrative"):
+            if variant in ("full", "minimal", "no_narrative",
+                           "no_sentiment", "no_feedback", "homogeneous"):
                 print(f"\n{'='*60}")
                 print(f"RUNNING GRAPH VARIANT: {variant}")
                 print(f"{'='*60}")
