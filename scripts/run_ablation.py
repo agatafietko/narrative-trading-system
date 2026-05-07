@@ -20,6 +20,9 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from dotenv import load_dotenv
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+
 from src.backtest.engine import BacktestEngine, get_rebalance_dates, load_backtest_config
 from src.backtest.baselines import run_sixty_forty, run_equal_weight, run_random_weights
 from src.backtest.metrics import compute_all_metrics
