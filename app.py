@@ -440,8 +440,16 @@ with st.sidebar:
         </div>
         """, unsafe_allow_html=True)
 
+        # Sort all run IDs by embedded timestamp (newest first) before slicing,
+        # because get_all_run_ids uses alphabetical ORDER BY which puts
+        # 'run_*' before 'ablation_*' regardless of date.
+        sorted_run_ids = sorted(
+            run_ids,
+            key=lambda r: parse_run_datetime(r) or __import__("datetime").datetime.min,
+            reverse=True,
+        )
         # Load valid runs (cached after first call)
-        valid_runs = get_valid_runs(tuple(run_ids[:15]))
+        valid_runs = get_valid_runs(tuple(sorted_run_ids[:20]))
         skel.empty()
 
         if not valid_runs:
