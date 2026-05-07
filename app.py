@@ -332,12 +332,19 @@ def run_list_label(run_id: str) -> str:
 
 @st.cache_data(ttl=300)
 def get_valid_runs(run_ids_tuple: tuple):
-    """Return list of (run_id, dt, ret, final_nav, sharpe, mdd) for displayable runs."""
+    """Return list of (run_id, dt, ret, final_nav, sharpe, mdd) for displayable runs.
+
+    Only includes runs from 2026 onward, sorted newest-first by embedded timestamp.
+    """
+    # Sort by the embedded datetime (parse_run_datetime), newest first.
+    # get_all_run_ids uses ORDER BY run_id DESC which is alphabetical and wrong
+    # when run IDs have different prefixes (e.g. 'ablation_' vs 'run_').
+    dated = [(rid, parse_run_datetime(rid)) for rid in run_ids_tuple]
+    dated = [(rid, dt) for rid, dt in dated if dt is not None and dt.year >= 2026]
+    dated.sort(key=lambda x: x[1], reverse=True)
+
     result = []
-    for rid in run_ids_tuple:
-        dt = parse_run_datetime(rid)
-        if not dt:
-            continue
+    for rid, dt in dated:
         try:
             h = load_portfolio_history(rid)
             if h.empty or len(h) < 2:
@@ -691,6 +698,12 @@ def page_portfolio():
                 .set_index("date")["adj_close"]
             )
             spy_px.index = pd.to_datetime(spy_px.index).normalize()
+            # Clamp to the portfolio's own date range — avoids pulling in
+            # historical data from prior years when the DB spans multiple periods
+            spy_px = spy_px[
+                (spy_px.index >= pd.to_datetime(start_dt).normalize()) &
+                (spy_px.index <= pd.to_datetime(end_dt).normalize())
+            ]
 
             # Portfolio snapshots exist only at rebalance dates — compute period
             # returns (snapshot-to-snapshot) and match SPY over the same windows.
@@ -738,22 +751,44 @@ def page_portfolio():
 
                 # One-tailed p-value (H0: α ≤ 0)
                 def _tdist_p(t, df):
+                    """P(T > t) for t-distribution with df degrees of freedom."""
                     if _math.isnan(t) or df < 1:
                         return float("nan")
-                    x_ = df / (df + t ** 2)
                     try:
+                        x_ = df / (df + t ** 2)
                         a_, b_ = df / 2.0, 0.5
                         lbeta_ = _math.lgamma(a_) + _math.lgamma(b_) - _math.lgamma(a_ + b_)
-                        if x_ > (a_ + 1) / (a_ + b_ + 2):
-                            return _tdist_p(-t, df)
-                        eps_, term_ = 1e-10, _math.exp(a_ * _math.log(x_) + b_ * _math.log(max(1-x_, 1e-300)) - lbeta_) / a_
-                        bi_ = term_
-                        for j_ in range(1, 200):
-                            term_ *= (a_ + b_ + j_ - 1) * x_ / (a_ + j_)
-                            bi_ += term_
-                            if abs(term_) < eps_ * abs(bi_):
-                                break
-                        return bi_ / 2 if t >= 0 else 1 - bi_ / 2
+                        threshold_ = (a_ + 1) / (a_ + b_ + 2)
+                        if x_ > threshold_:
+                            # Use symmetry: I_x(a,b) = 1 - I_{1-x}(b,a)
+                            # Swap roles — compute I_{1-x}(b, a) with the series
+                            x2_ = 1 - x_
+                            a2_, b2_ = b_, a_
+                            lbeta2_ = _math.lgamma(a2_) + _math.lgamma(b2_) - _math.lgamma(a2_ + b2_)
+                            eps2_, term2_ = 1e-10, _math.exp(
+                                a2_ * _math.log(max(x2_, 1e-300)) +
+                                b2_ * _math.log(max(1 - x2_, 1e-300)) - lbeta2_
+                            ) / a2_
+                            bi2_ = term2_
+                            for j2_ in range(1, 300):
+                                term2_ *= (a2_ + b2_ + j2_ - 1) * x2_ / (a2_ + j2_)
+                                bi2_ += term2_
+                                if abs(term2_) < eps2_ * abs(bi2_):
+                                    break
+                            betainc_ = 1 - bi2_  # I_x(a,b) = 1 - I_{1-x}(b,a)
+                        else:
+                            eps_, term_ = 1e-10, _math.exp(
+                                a_ * _math.log(max(x_, 1e-300)) +
+                                b_ * _math.log(max(1 - x_, 1e-300)) - lbeta_
+                            ) / a_
+                            betainc_ = term_
+                            for j_ in range(1, 300):
+                                term_ *= (a_ + b_ + j_ - 1) * x_ / (a_ + j_)
+                                betainc_ += term_
+                                if abs(term_) < eps_ * abs(betainc_):
+                                    break
+                        # betainc_ = two-tailed p; convert to one-tailed
+                        return betainc_ / 2 if t >= 0 else 1 - betainc_ / 2
                     except Exception:
                         return float("nan")
 
@@ -1206,36 +1241,41 @@ def page_ablation():
 
     def _t_to_p_one_tail(t_stat, df):
         """Approximate one-tailed p-value using a numerical t-CDF (no scipy needed)."""
-        if df <= 0:
+        if df <= 0 or math.isnan(t_stat):
             return float("nan")
-        # Use regularized incomplete beta via math.lgamma (accurate for df > 1)
-        x = df / (df + t_stat ** 2)
-        # regularized incomplete beta I_x(df/2, 1/2) — use log-beta symmetry
         try:
+            x = df / (df + t_stat ** 2)
             a, b = df / 2.0, 0.5
-            # Compute I_x(a,b) via continued fraction or series for small x
-            # Simpler: use the fact that p = 0.5 * I_x(df/2, 0.5) for two-tail
-            # one-tail p = 1 - 0.5 * I_x(df/2, 0.5)  when t > 0
-            # I_x(a,b) ≈ betainc using log-gamma series
             lbeta = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
-            # Walk through the series expansion for small x (x < (a+1)/(a+b+2))
-            if x > (a + 1) / (a + b + 2):
-                # Use symmetry I_x(a,b) = 1 - I_{1-x}(b,a)
-                return _t_to_p_one_tail(-abs(t_stat), df)  # reflect
-            # Series: sum_{j=0}^{inf} term_j
-            eps = 1e-10
-            term = math.exp(a * math.log(x) + b * math.log(1 - x) - lbeta) / a
-            betainc = term
-            for j in range(1, 200):
-                term *= (a + b + j - 1) * x / (a + j)
-                betainc += term
-                if abs(term) < eps * abs(betainc):
-                    break
-            two_tail_p = betainc  # I_x(a,b) = two-tailed p
-            if t_stat >= 0:
-                return two_tail_p / 2
+            threshold = (a + 1) / (a + b + 2)
+            if x > threshold:
+                # Symmetry: I_x(a,b) = 1 - I_{1-x}(b,a) — swap, don't recurse
+                x2, a2, b2 = 1 - x, b, a
+                lbeta2 = math.lgamma(a2) + math.lgamma(b2) - math.lgamma(a2 + b2)
+                eps, term = 1e-10, math.exp(
+                    a2 * math.log(max(x2, 1e-300)) +
+                    b2 * math.log(max(1 - x2, 1e-300)) - lbeta2
+                ) / a2
+                betainc = term
+                for j in range(1, 300):
+                    term *= (a2 + b2 + j - 1) * x2 / (a2 + j)
+                    betainc += term
+                    if abs(term) < eps * abs(betainc):
+                        break
+                two_tail_p = 1 - betainc
             else:
-                return 1 - two_tail_p / 2
+                eps, term = 1e-10, math.exp(
+                    a * math.log(max(x, 1e-300)) +
+                    b * math.log(max(1 - x, 1e-300)) - lbeta
+                ) / a
+                betainc = term
+                for j in range(1, 300):
+                    term *= (a + b + j - 1) * x / (a + j)
+                    betainc += term
+                    if abs(term) < eps * abs(betainc):
+                        break
+                two_tail_p = betainc
+            return two_tail_p / 2 if t_stat >= 0 else 1 - two_tail_p / 2
         except Exception:
             return float("nan")
 
