@@ -92,8 +92,8 @@ class Strategist(BaseAgent):
                     direction = "underweight"
                 else:
                     direction = "neutral"
-                rationale = asset_map["payload"].get("rationale", {}).get(ticker, "")
-                prompt += f"  {ticker}: {score:+.2f} ({direction}) — {rationale}\n"
+                rationale = (asset_map["payload"].get("rationale") or {}).get(ticker, "")
+                prompt += f"  {ticker}: {float(score):+.2f} ({direction}) — {rationale}\n"
 
         # Call LLM
         response = self.call_llm(prompt)
