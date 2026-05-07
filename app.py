@@ -948,24 +948,37 @@ def page_ablation():
     col_l, col_r = st.columns(2)
 
     with col_l:
-        section("Return vs Volatility")
+        section("Return vs Max Drawdown")
         scatter_data = []
         for strat, name in zip(strategies, clean_names):
+            tr  = _val(strat, "total_return") * 100
+            mdd = abs(_val(strat, "max_drawdown")) * 100
             scatter_data.append({
                 "Strategy": name,
-                "Ann. Return (%)": _val(strat, "annualized_return") * 100,
-                "Ann. Volatility (%)": _val(strat, "annualized_volatility") * 100,
-                "Sharpe": _val(strat, "sharpe_ratio"),
+                "Total Return (%)": tr,
+                "Max Drawdown (%)": mdd,
+                "Return/Risk": tr / mdd if mdd > 0 else 0,
             })
         sdf = pd.DataFrame(scatter_data)
         fig = px.scatter(
-            sdf, x="Ann. Volatility (%)", y="Ann. Return (%)",
-            text="Strategy", size=[abs(r) + 0.1 for r in sdf["Sharpe"]],
-            color="Sharpe", color_continuous_scale=["#ef4444", "#f59e0b", "#10b981"],
-            size_max=35,
+            sdf,
+            x="Max Drawdown (%)",
+            y="Total Return (%)",
+            text="Strategy",
+            size=[max(abs(r), 0.5) for r in sdf["Return/Risk"]],
+            color="Return/Risk",
+            color_continuous_scale=["#ef4444", "#f59e0b", "#10b981"],
+            size_max=40,
+            hover_data={"Strategy": True, "Total Return (%)": ":.2f", "Max Drawdown (%)": ":.2f"},
         )
+        fig.add_hline(y=0, line_dash="dash", line_color="#94a3b8", line_width=1)
         fig.update_traces(textposition="top center", marker_line_width=0)
-        fig.update_layout(**CHART_LAYOUT, height=360, coloraxis_showscale=False)
+        fig.update_layout(
+            **CHART_LAYOUT, height=380,
+            coloraxis_showscale=False,
+            xaxis_title="Max Drawdown (%)",
+            yaxis_title="Total Return (%)",
+        )
         st.plotly_chart(fig, width="stretch")
 
     with col_r:
