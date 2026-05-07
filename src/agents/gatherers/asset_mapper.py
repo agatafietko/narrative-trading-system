@@ -6,7 +6,6 @@ a directional score (-1.0 to +1.0) for each instrument in the trading universe.
 
 from __future__ import annotations
 
-import json
 from datetime import datetime
 
 from src.agents.base import BaseAgent
@@ -47,7 +46,7 @@ class AssetMapper(BaseAgent):
             logger.warning(f"[AssetMapper] LLM call failed: {e}")
             return {
                 "views": {}, "rationale": {}, "dominant_theme": "",
-                "confidence": 0.0, "model_used": self.model_name,
+                "confidence": 0.0, "model_used": f"{self.provider}/{self.model_name}",
                 "prompt_hash": "", "response_hash": "", "latency_ms": 0,
             }
 
@@ -74,7 +73,7 @@ class AssetMapper(BaseAgent):
             "views": views,
             "rationale": parsed.get("rationale", {}),
             "dominant_theme": parsed.get("dominant_theme", ""),
-            "confidence": float(parsed.get("confidence", 0.5)),
+            "confidence": max(0.0, min(1.0, float(parsed.get("confidence", 0.5)))),
             "model_used": response["model_used"],
             "prompt_hash": response["prompt_hash"],
             "response_hash": response["response_hash"],

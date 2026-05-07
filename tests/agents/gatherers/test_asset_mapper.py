@@ -125,6 +125,17 @@ def test_map_assets_graceful_on_bad_json():
     assert result["confidence"] == 0.0
 
 
+def test_map_assets_graceful_on_llm_exception():
+    """LLM call failure returns views={} with confidence=0."""
+    agent = AssetMapper()
+    with patch.object(agent, "call_llm", side_effect=RuntimeError("timeout")):
+        result = agent.map_assets(SAMPLE_SIGNALS, AS_OF)
+
+    assert result["views"] == {}
+    assert result["confidence"] == 0.0
+
+
+@pytest.mark.xfail(reason="asset_mapper_node not yet added (Task 2)", strict=True)
 def test_asset_mapper_node_skips_with_few_signals():
     """Node returns empty signal list when fewer than 2 signals are present."""
     from src.graph.nodes import asset_mapper_node
@@ -135,6 +146,7 @@ def test_asset_mapper_node_skips_with_few_signals():
     assert result == {"signals": []}
 
 
+@pytest.mark.xfail(reason="asset_mapper_node not yet added (Task 2)", strict=True)
 def test_asset_mapper_node_appends_signal():
     """Node returns one asset_map signal when given >=2 input signals."""
     from src.graph.nodes import asset_mapper_node
