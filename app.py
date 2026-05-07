@@ -1068,15 +1068,18 @@ def page_architecture():
             </div>
             """, unsafe_allow_html=True)
             for agent, model, desc in agents:
-                model_tag = f'<code style="background:#f1f5f9;padding:1px 5px;border-radius:4px;font-size:0.75rem;">{model}</code>' if model != "—" else ""
-                st.markdown(f"""
-                <div style="margin:-0.25rem 0 0.5rem 1rem; padding: 0.5rem 0.75rem;
-                             background:white; border-radius:8px; border:1px solid #e2e8f0;">
-                    <span style="font-weight:600;font-size:0.85rem;color:#1e293b;">{agent}</span>
-                    {model_tag}
-                    <div style="font-size:0.78rem;color:#64748b;margin-top:2px;">{desc}</div>
-                </div>
-                """, unsafe_allow_html=True)
+                with st.container(border=True):
+                    left, right = st.columns([3, 1])
+                    with left:
+                        st.markdown(f"**{agent}**")
+                        st.caption(desc)
+                    with right:
+                        if model != "—":
+                            st.markdown(
+                                f'<div style="text-align:right;font-size:0.75rem;'
+                                f'color:#64748b;padding-top:4px;">{model}</div>',
+                                unsafe_allow_html=True,
+                            )
 
     with col_r:
         section("Key Design Decisions")
