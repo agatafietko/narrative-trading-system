@@ -666,7 +666,7 @@ def page_portfolio():
     # ── Factor Regression vs SPY ───────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
     section("Factor Regression vs SPY Benchmark")
-    st.caption("OLS: R_portfolio = α + β × R_SPY + ε  |  daily returns, then annualised.")
+    st.caption("OLS: R_portfolio = α + β × R_SPY + ε  |  period-matched rebalance returns, α annualised to yearly.")
 
     try:
         import math as _math
@@ -690,32 +690,51 @@ def page_portfolio():
                 .sort_values("date")
                 .set_index("date")["adj_close"]
             )
-            spy_ret = spy_px.pct_change().dropna()
+            spy_px.index = pd.to_datetime(spy_px.index).normalize()
 
-            port_series = history.set_index("as_of")["nav"]
-            port_ret = port_series.pct_change().dropna()
-            port_ret.index = pd.to_datetime(port_ret.index).normalize()
-            spy_ret.index  = pd.to_datetime(spy_ret.index).normalize()
+            # Portfolio snapshots exist only at rebalance dates — compute period
+            # returns (snapshot-to-snapshot) and match SPY over the same windows.
+            # This ensures both series measure the same holding-period return.
+            port_series = history.set_index("as_of")["nav"].sort_index()
+            port_series.index = pd.to_datetime(port_series.index).normalize()
+
+            snap_dates = port_series.index
+            spy_at_snaps = spy_px.reindex(snap_dates, method="ffill").dropna()
+
+            # Only keep dates present in both
+            common = snap_dates[snap_dates.isin(spy_at_snaps.index)]
+            port_at_snaps = port_series.reindex(common)
+            spy_at_snaps  = spy_at_snaps.reindex(common)
+
+            port_ret = port_at_snaps.pct_change().dropna()
+            spy_ret  = spy_at_snaps.pct_change().dropna()
 
             aligned = pd.concat([port_ret, spy_ret], axis=1, join="inner").dropna()
             aligned.columns = ["portfolio", "spy"]
             n = len(aligned)
+
+            # Determine period frequency for annualisation
+            if n >= 2:
+                avg_days = (common[-1] - common[0]).days / max(n, 1)
+                periods_per_year = 365.0 / max(avg_days, 1)
+            else:
+                periods_per_year = 52  # assume weekly
 
             if n >= 5:
                 x = aligned["spy"].values
                 y = aligned["portfolio"].values
                 x_mean, y_mean = x.mean(), y.mean()
                 beta  = _np.sum((x - x_mean) * (y - y_mean)) / _np.sum((x - x_mean) ** 2)
-                alpha_daily = y_mean - beta * x_mean
-                alpha_annual = (1 + alpha_daily) ** 252 - 1
+                alpha_period = y_mean - beta * x_mean
+                alpha_annual = (1 + alpha_period) ** periods_per_year - 1
 
-                resid    = y - (alpha_daily + beta * x)
+                resid    = y - (alpha_period + beta * x)
                 ss_res   = _np.sum(resid ** 2)
                 ss_tot   = _np.sum((y - y_mean) ** 2)
                 r_sq     = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
 
                 se_alpha = _np.sqrt(ss_res / max(n - 2, 1) / n)
-                t_alpha  = alpha_daily / se_alpha if se_alpha > 0 else float("nan")
+                t_alpha  = alpha_period / se_alpha if se_alpha > 0 else float("nan")
 
                 # One-tailed p-value (H0: α ≤ 0)
                 def _tdist_p(t, df):
