@@ -104,7 +104,12 @@ class AssetMapper(BaseAgent):
         # Narrative
         dom_narratives = narrative.get("dominant_narratives", [])
         news_sentiment = narrative.get("overall_news_sentiment", "neutral")
-        lines.append(f"DOMINANT NARRATIVES: {', '.join(dom_narratives) if dom_narratives else 'none'}")
+        # dominant_narratives may be strings or dicts — normalise to strings
+        dom_strs = [
+            n if isinstance(n, str) else n.get("name", str(n))
+            for n in dom_narratives
+        ]
+        lines.append(f"DOMINANT NARRATIVES: {', '.join(dom_strs) if dom_strs else 'none'}")
         lines.append(f"NEWS SENTIMENT: {news_sentiment}")
         lines.append("")
 
