@@ -123,5 +123,19 @@
     "num_periods": 18,
     "date_range": "2026-01-02 to 2026-05-07",
     "note": "Complete multi-agent pipeline. 18 weekly rebalances Jan-May 2026."
+  },
+  "full_system_with_asset_mapper": {
+    "total_return": -0.0241,
+    "annualized_return": -0.0027,
+    "annualized_volatility": 0.0228,
+    "sharpe_ratio": -0.1,
+    "sortino_ratio": -0.02,
+    "max_drawdown": -0.0844,
+    "calmar_ratio": -0.03,
+    "hit_rate": 0.0251,
+    "total_costs": 17522.0,
+    "num_periods": 18,
+    "date_range": "2026-01-02 to 2026-05-07",
+    "note": "Full pipeline + Asset Mapping Agent. 18 weekly rebalances Jan-May 2026. Run: ablation_full_run_20260507_130224_6bbeff"
   }
 }
