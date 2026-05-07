@@ -19,6 +19,7 @@ from src.agents.execution.portfolio_constructor import construct_portfolio
 from src.agents.gatherers.asset_mapper import AssetMapper
 from src.agents.gatherers.macro_sentinel import MacroSentinel
 from src.agents.gatherers.market_technician import generate_signal as tech_signal
+from src.state.schema import Signal
 from src.state.store import DataStore
 from src.utils.logging import get_logger
 
@@ -182,13 +183,11 @@ def signal_aggregator_node(state: dict) -> dict:
 def asset_mapper_node(state: dict) -> dict:
     """Asset Mapper node — translates signals to per-ticker directional views."""
     signals = state.get("signals", [])
-    as_of = state.get("as_of")
+    as_of = state["as_of"]
 
     if len(signals) < 2:
         logger.info("[Asset Mapper] Fewer than 2 signals — skipping LLM call")
         return {"signals": []}
-
-    from src.state.schema import Signal
 
     logger.info(f"[Asset Mapper] Mapping {len(signals)} signals to asset views")
     mapper = _get_asset_mapper()
