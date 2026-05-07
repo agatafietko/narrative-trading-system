@@ -16,6 +16,7 @@ from src.agents.council.strategist import Strategist
 from src.agents.council.synthesizer import Synthesizer
 from src.agents.execution.order_manager import apply_orders_to_portfolio, generate_orders
 from src.agents.execution.portfolio_constructor import construct_portfolio
+from src.agents.gatherers.asset_mapper import AssetMapper
 from src.agents.gatherers.macro_sentinel import MacroSentinel
 from src.agents.gatherers.market_technician import generate_signal as tech_signal
 from src.state.store import DataStore
@@ -31,6 +32,7 @@ _synthesizer = None
 _risk_manager = None
 _quant = None
 _behavioral_skeptic = None
+_asset_mapper = None
 
 
 def _get_macro_sentinel() -> MacroSentinel:
@@ -80,6 +82,13 @@ def _get_behavioral_skeptic() -> BehavioralSkeptic:
     if _behavioral_skeptic is None:
         _behavioral_skeptic = BehavioralSkeptic()
     return _behavioral_skeptic
+
+
+def _get_asset_mapper() -> AssetMapper:
+    global _asset_mapper
+    if _asset_mapper is None:
+        _asset_mapper = AssetMapper()
+    return _asset_mapper
 
 
 # ---------------------------------------------------------------------------
@@ -168,6 +177,31 @@ def signal_aggregator_node(state: dict) -> dict:
     logger.info(f"[Aggregator] Signal types: {types}")
 
     return {}  # No state mutation — signals already accumulated via operator.add
+
+
+def asset_mapper_node(state: dict) -> dict:
+    """Asset Mapper node — translates signals to per-ticker directional views."""
+    signals = state.get("signals", [])
+    as_of = state.get("as_of")
+
+    if len(signals) < 2:
+        logger.info("[Asset Mapper] Fewer than 2 signals — skipping LLM call")
+        return {"signals": []}
+
+    from src.state.schema import Signal
+
+    logger.info(f"[Asset Mapper] Mapping {len(signals)} signals to asset views")
+    mapper = _get_asset_mapper()
+    payload = mapper.map_assets(signals, as_of)
+
+    signal = Signal(
+        agent_name="asset_mapper",
+        signal_type="asset_map",
+        as_of=as_of,
+        confidence=payload.get("confidence", 0.0),
+        payload=payload,
+    )
+    return {"signals": [signal.model_dump()]}
 
 
 # ---------------------------------------------------------------------------
