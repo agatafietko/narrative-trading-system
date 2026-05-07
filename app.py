@@ -663,6 +663,142 @@ def page_portfolio():
             st.dataframe(tdf, hide_index=True, use_container_width=True,
                          column_config={"Side": st.column_config.TextColumn(width="small")})
 
+    # ── Factor Regression vs SPY ───────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    section("Factor Regression vs SPY Benchmark")
+    st.caption("OLS: R_portfolio = α + β × R_SPY + ε  |  daily returns, then annualised.")
+
+    try:
+        import math as _math
+        import numpy as _np
+
+        # Load SPY prices for the same date range as this run
+        store_reg = get_store()
+        start_dt  = history["as_of"].min()
+        end_dt    = history["as_of"].max()
+
+        from datetime import datetime as _dt
+        mkt = store_reg.get_market_data_as_of(
+            end_dt if isinstance(end_dt, _dt) else _dt.combine(end_dt, _dt.min.time()),
+            ticker="SPY",
+            lookback_days=int((end_dt - start_dt).days + 30),
+        )
+
+        if not mkt.empty:
+            spy_px = (
+                mkt[mkt["ticker"] == "SPY"][["date", "adj_close"]]
+                .sort_values("date")
+                .set_index("date")["adj_close"]
+            )
+            spy_ret = spy_px.pct_change().dropna()
+
+            port_series = history.set_index("as_of")["nav"]
+            port_ret = port_series.pct_change().dropna()
+            port_ret.index = pd.to_datetime(port_ret.index).normalize()
+            spy_ret.index  = pd.to_datetime(spy_ret.index).normalize()
+
+            aligned = pd.concat([port_ret, spy_ret], axis=1, join="inner").dropna()
+            aligned.columns = ["portfolio", "spy"]
+            n = len(aligned)
+
+            if n >= 5:
+                x = aligned["spy"].values
+                y = aligned["portfolio"].values
+                x_mean, y_mean = x.mean(), y.mean()
+                beta  = _np.sum((x - x_mean) * (y - y_mean)) / _np.sum((x - x_mean) ** 2)
+                alpha_daily = y_mean - beta * x_mean
+                alpha_annual = (1 + alpha_daily) ** 252 - 1
+
+                resid    = y - (alpha_daily + beta * x)
+                ss_res   = _np.sum(resid ** 2)
+                ss_tot   = _np.sum((y - y_mean) ** 2)
+                r_sq     = 1 - ss_res / ss_tot if ss_tot > 0 else 0.0
+
+                se_alpha = _np.sqrt(ss_res / max(n - 2, 1) / n)
+                t_alpha  = alpha_daily / se_alpha if se_alpha > 0 else float("nan")
+
+                # One-tailed p-value (H0: α ≤ 0)
+                def _tdist_p(t, df):
+                    if _math.isnan(t) or df < 1:
+                        return float("nan")
+                    x_ = df / (df + t ** 2)
+                    try:
+                        a_, b_ = df / 2.0, 0.5
+                        lbeta_ = _math.lgamma(a_) + _math.lgamma(b_) - _math.lgamma(a_ + b_)
+                        if x_ > (a_ + 1) / (a_ + b_ + 2):
+                            return _tdist_p(-t, df)
+                        eps_, term_ = 1e-10, _math.exp(a_ * _math.log(x_) + b_ * _math.log(max(1-x_, 1e-300)) - lbeta_) / a_
+                        bi_ = term_
+                        for j_ in range(1, 200):
+                            term_ *= (a_ + b_ + j_ - 1) * x_ / (a_ + j_)
+                            bi_ += term_
+                            if abs(term_) < eps_ * abs(bi_):
+                                break
+                        return bi_ / 2 if t >= 0 else 1 - bi_ / 2
+                    except Exception:
+                        return float("nan")
+
+                p_alpha = _tdist_p(t_alpha, n - 2)
+
+                def _stars(p):
+                    if _math.isnan(p): return "—"
+                    if p < 0.01: return "***"
+                    if p < 0.05: return "**"
+                    if p < 0.10: return "*"
+                    return "n.s."
+
+                # Metric cards row
+                rc1, rc2, rc3, rc4 = st.columns(4)
+                with rc1: metric_card("α (annualised)", f"{alpha_annual:+.2%}",
+                                      "green" if alpha_annual > 0 else "red")
+                with rc2: metric_card("β vs SPY",      f"{beta:.2f}")
+                with rc3: metric_card("R²",            f"{r_sq:.2f}")
+                with rc4: metric_card("t(α)",          f"{t_alpha:.2f} {_stars(p_alpha)}",
+                                      "green" if t_alpha > 1.645 else "amber")
+
+                st.caption(
+                    f"Based on {n} overlapping daily return observations "
+                    f"({start_dt.strftime('%b %d') if hasattr(start_dt,'strftime') else start_dt} – "
+                    f"{end_dt.strftime('%b %d, %Y') if hasattr(end_dt,'strftime') else end_dt}). "
+                    f"p(α)={p_alpha:.3f}. "
+                    "Sig: * p<0.10, ** p<0.05, *** p<0.01 (one-tailed H₀: α ≤ 0)."
+                )
+
+                # Rolling 30-day beta
+                if n >= 15:
+                    section("Rolling 30-Day Beta vs SPY")
+                    window = min(30, n // 2)
+                    rolling_beta = []
+                    for i in range(window - 1, n):
+                        xi = x[i - window + 1 : i + 1]
+                        yi = y[i - window + 1 : i + 1]
+                        xm, ym = xi.mean(), yi.mean()
+                        denom = _np.sum((xi - xm) ** 2)
+                        rb = _np.sum((xi - xm) * (yi - ym)) / denom if denom > 0 else float("nan")
+                        rolling_beta.append({"date": aligned.index[i], "beta": rb})
+                    rdf = pd.DataFrame(rolling_beta)
+                    fig_beta = go.Figure()
+                    fig_beta.add_trace(go.Scatter(
+                        x=rdf["date"], y=rdf["beta"],
+                        mode="lines", name="Rolling β",
+                        line=dict(color=BLUE, width=2),
+                        hovertemplate="<b>%{x|%b %d}</b><br>β = %{y:.2f}<extra></extra>",
+                    ))
+                    fig_beta.add_hline(y=1.0, line_dash="dot", line_color="#94a3b8",
+                                       line_width=1, annotation_text="β=1 (market)",
+                                       annotation_position="bottom right",
+                                       annotation_font_color="#94a3b8")
+                    fig_beta.add_hline(y=0.0, line_dash="dash", line_color="#e2e8f0", line_width=1)
+                    fig_beta.update_layout(**CHART_LAYOUT, height=260,
+                                           yaxis_title="Beta", xaxis_title="")
+                    st.plotly_chart(fig_beta, width="stretch")
+            else:
+                st.info("Not enough overlapping data points for regression (need ≥ 5).")
+        else:
+            st.info("SPY market data not available for regression.")
+    except Exception as _reg_err:
+        st.info(f"Regression unavailable: {_reg_err}")
+
     # ── Explain this performance ───────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
     perf_cache_key = f"perf_explain_{selected_run}"
@@ -1038,6 +1174,102 @@ def page_ablation():
                 row[name] = "—"
         rows.append(row)
     st.dataframe(pd.DataFrame(rows), hide_index=True, use_container_width=True)
+
+    # ── Statistical Significance ────────────────────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    section("Statistical Significance of Sharpe Ratios")
+    st.caption(
+        "H₀: Sharpe ≤ 0. t-statistic = SR_annual × √(T/252) where T = number of daily periods. "
+        "Significance: * p<0.10 · ** p<0.05 · *** p<0.01 (one-tailed)."
+    )
+
+    import math
+
+    def _t_to_p_one_tail(t_stat, df):
+        """Approximate one-tailed p-value using a numerical t-CDF (no scipy needed)."""
+        if df <= 0:
+            return float("nan")
+        # Use regularized incomplete beta via math.lgamma (accurate for df > 1)
+        x = df / (df + t_stat ** 2)
+        # regularized incomplete beta I_x(df/2, 1/2) — use log-beta symmetry
+        try:
+            a, b = df / 2.0, 0.5
+            # Compute I_x(a,b) via continued fraction or series for small x
+            # Simpler: use the fact that p = 0.5 * I_x(df/2, 0.5) for two-tail
+            # one-tail p = 1 - 0.5 * I_x(df/2, 0.5)  when t > 0
+            # I_x(a,b) ≈ betainc using log-gamma series
+            lbeta = math.lgamma(a) + math.lgamma(b) - math.lgamma(a + b)
+            # Walk through the series expansion for small x (x < (a+1)/(a+b+2))
+            if x > (a + 1) / (a + b + 2):
+                # Use symmetry I_x(a,b) = 1 - I_{1-x}(b,a)
+                return _t_to_p_one_tail(-abs(t_stat), df)  # reflect
+            # Series: sum_{j=0}^{inf} term_j
+            eps = 1e-10
+            term = math.exp(a * math.log(x) + b * math.log(1 - x) - lbeta) / a
+            betainc = term
+            for j in range(1, 200):
+                term *= (a + b + j - 1) * x / (a + j)
+                betainc += term
+                if abs(term) < eps * abs(betainc):
+                    break
+            two_tail_p = betainc  # I_x(a,b) = two-tailed p
+            if t_stat >= 0:
+                return two_tail_p / 2
+            else:
+                return 1 - two_tail_p / 2
+        except Exception:
+            return float("nan")
+
+    def _sig_stars(p):
+        if math.isnan(p):
+            return "—"
+        if p < 0.01:
+            return "***"
+        if p < 0.05:
+            return "**"
+        if p < 0.10:
+            return "*"
+        return "n.s."
+
+    # Identify best baseline key available
+    baseline_key = next(
+        (k for k in ("sixty_forty_2026", "sixty_forty") if k in results), None
+    )
+
+    sig_rows = []
+    for strat, name in zip(strategies, clean_names):
+        sr = results[strat].get("sharpe_ratio")
+        T  = results[strat].get("num_periods", 0)
+        if sr is not None and T and T >= 5:
+            t_stat = sr * math.sqrt(T / 252.0)
+            p_val  = _t_to_p_one_tail(t_stat, T - 1)
+            stars  = _sig_stars(p_val)
+            p_str  = f"{p_val:.3f}" if not math.isnan(p_val) else "—"
+        else:
+            t_stat, p_str, stars = float("nan"), "—", "—"
+
+        excess_ret = None
+        if baseline_key:
+            b_ret = results[baseline_key].get("total_return")
+            s_ret = results[strat].get("total_return")
+            if b_ret is not None and s_ret is not None:
+                excess_ret = s_ret - b_ret
+
+        sig_rows.append({
+            "Strategy":         name,
+            "Sharpe (annual)":  f"{sr:.2f}" if sr is not None else "—",
+            "N periods":        int(T) if T else "—",
+            "t-statistic":      f"{t_stat:.2f}" if not math.isnan(t_stat) else "—",
+            "p-value (1-tail)": p_str,
+            "Sig.":             stars,
+            "Excess vs 60/40":  f"{excess_ret:+.1%}" if excess_ret is not None else "—",
+        })
+
+    st.dataframe(pd.DataFrame(sig_rows), hide_index=True, use_container_width=True)
+    st.caption(
+        "Excess vs 60/40 = strategy total return minus 60/40 total return over the same evaluation window. "
+        "n.s. = not statistically significant at the 10% level."
+    )
 
     # ── Explain these results ──────────────────────────────────────────────
     st.markdown("<br>", unsafe_allow_html=True)
