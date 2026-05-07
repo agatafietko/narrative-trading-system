@@ -76,6 +76,25 @@ class Strategist(BaseAgent):
             universe_list=", ".join(UNIVERSE_INSTRUMENTS),
         )
 
+        # Inject asset map advisory section (appended after template format)
+        asset_map = next(
+            (s for s in signals if s.get("signal_type") == "asset_map"), None
+        )
+        if asset_map and asset_map["payload"].get("views"):
+            views = asset_map["payload"]["views"]
+            theme = asset_map["payload"].get("dominant_theme", "")
+            prompt += "\n\nPRE-MAPPED ASSET VIEWS (Asset Mapper, for reference):\n"
+            prompt += f"Dominant theme: {theme}\n"
+            for ticker, score in views.items():
+                if score > 0.1:
+                    direction = "overweight"
+                elif score < -0.1:
+                    direction = "underweight"
+                else:
+                    direction = "neutral"
+                rationale = asset_map["payload"].get("rationale", {}).get(ticker, "")
+                prompt += f"  {ticker}: {score:+.2f} ({direction}) — {rationale}\n"
+
         # Call LLM
         response = self.call_llm(prompt)
         parsed = self.parse_json_response(response["content"])
