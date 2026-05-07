@@ -962,13 +962,12 @@ def page_ablation():
         hovertemplate="<b>%{y}</b><br>Sharpe: %{text}<extra></extra>",
     ))
     fig_sr.add_vline(x=0, line_color="#94a3b8", line_width=1)
-    fig_sr.update_layout(
-        **CHART_LAYOUT,
-        height=max(280, len(strategies) * 42),
-        xaxis_title="Sharpe Ratio",
-        yaxis=dict(autorange="reversed"),
-        margin=dict(l=0, r=60, t=10, b=30),
-    )
+    sr_layout = {**CHART_LAYOUT}
+    sr_layout["height"] = max(280, len(strategies) * 42)
+    sr_layout["xaxis_title"] = "Sharpe Ratio"
+    sr_layout["yaxis"] = dict(showgrid=True, gridcolor="#f1f5f9", zeroline=False, autorange="reversed")
+    sr_layout["margin"] = dict(l=0, r=60, t=10, b=30)
+    fig_sr.update_layout(**sr_layout)
     st.plotly_chart(fig_sr, width="stretch")
     st.caption("† n/a indicates fewer than 8 weekly rebalances — Sharpe shown as 0 for bar scale only.")
 
