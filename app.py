@@ -536,8 +536,8 @@ def page_overview():
     c1, c2, c3, c4 = st.columns(4)
     with c1: metric_card("Total Runs", str(len(run_ids)) if run_ids else "0")
     with c2: metric_card("Instruments", "11")
-    with c3: metric_card("LLM Agents", "7")
-    with c4: metric_card("Backtest Period", "Jan–Apr 2026")
+    with c3: metric_card("LLM Agents", "11")
+    with c4: metric_card("Backtest Period", "Jan–May 2026")
 
     st.markdown("<br>", unsafe_allow_html=True)
     col_l, col_r = st.columns([3, 2])
@@ -545,8 +545,8 @@ def page_overview():
     with col_l:
         section("System Pipeline")
         stages = [
-            ("gather",   "📡 Information Gathering",  "Macro Sentinel · Market Technician · Narrative Analyst · Sentiment Scout"),
-            ("council",  "⚖️  Council Debate",         "Strategist (GPT-4o) → Contrarian (Claude) → Synthesizer (DeepSeek) — Delphi protocol, max 2 rounds"),
+            ("gather",   "📡 Information Gathering",  "Macro Sentinel · Market Technician · Narrative Analyst · Sentiment Scout · Asset Mapper"),
+            ("council",  "⚖️  Council Debate",         "Strategist · Contrarian · Risk Manager · Quant · Behavioral Skeptic → Synthesizer — Delphi protocol, max 2 rounds"),
             ("execute",  "🚀 Execution",               "Portfolio Constructor applies constraints · Order Manager applies 30 bps cost model"),
             ("feedback", "🔁 Feedback Loop",           "Backtest Evaluator scores each agent · injects feedback into future prompts"),
         ]
@@ -565,8 +565,12 @@ def page_overview():
             {"Agent": "Market Technician", "Model": "Deterministic",   "Role": "Gatherer"},
             {"Agent": "Narrative Analyst", "Model": "Claude Sonnet",   "Role": "Gatherer"},
             {"Agent": "Sentiment Scout",   "Model": "Gemini Flash",    "Role": "Gatherer"},
+            {"Agent": "Asset Mapper",      "Model": "Claude Sonnet",   "Role": "Gatherer"},
             {"Agent": "Strategist",        "Model": "GPT-4o",          "Role": "Council"},
             {"Agent": "Contrarian",        "Model": "Claude Sonnet",   "Role": "Council"},
+            {"Agent": "Risk Manager",      "Model": "Claude Sonnet",   "Role": "Council"},
+            {"Agent": "Quant",             "Model": "GPT-4o mini",     "Role": "Council"},
+            {"Agent": "Behavioral Skeptic","Model": "GPT-4o",          "Role": "Council"},
             {"Agent": "Synthesizer",       "Model": "GPT-4o mini",     "Role": "Council"},
             {"Agent": "Evaluator",         "Model": "GPT-4o",          "Role": "Feedback"},
         ])
@@ -1386,11 +1390,15 @@ def page_architecture():
                 ("Market Technician", "Deterministic", "Computes RSI, MACD, Bollinger Bands, trend, momentum"),
                 ("Narrative Analyst", "Claude Sonnet", "Extracts dominant narratives from news articles and GDELT"),
                 ("Sentiment Scout",   "Gemini Flash",  "Scores fear/greed from Reddit and social signals"),
+                ("Asset Mapper",      "Claude Sonnet", "Translates all signals into per-ticker directional scores (−1 to +1)"),
             ]),
             ("council",  "⚖️",  "Council Debate (Delphi Protocol)", [
-                ("Strategist",  "GPT-4o",      "Proposes investment thesis — views per instrument with conviction"),
-                ("Contrarian",  "Claude Sonnet","Challenges thesis — finds crowded trades and missed risks"),
-                ("Synthesizer", "GPT-4o mini", "Mediates and produces final weights. Loops if conviction < 0.6"),
+                ("Strategist",         "GPT-4o",       "Proposes investment thesis — views per instrument with conviction"),
+                ("Contrarian",         "Claude Sonnet","Challenges thesis — finds crowded trades and missed risks"),
+                ("Risk Manager",       "Claude Sonnet","Stress-tests tail risk and concentration limits"),
+                ("Quant",              "GPT-4o mini",  "Pure signal-driven view — ignores narrative, focuses on price data"),
+                ("Behavioral Skeptic", "GPT-4o",       "Challenges crowd positioning and sentiment consensus"),
+                ("Synthesizer",        "GPT-4o mini",  "Mediates and produces final weights. Loops if conviction < 0.6"),
             ]),
             ("execute",  "🚀", "Execution", [
                 ("Portfolio Constructor", "—", "Applies position limits (25%), equity cap (40%), 5% cash buffer"),
@@ -1443,7 +1451,7 @@ def page_architecture():
         section("Backtest Parameters")
         params = {
             "Initial Capital": "$1,000,000",
-            "Period": "Jan 2026 – Apr 2026",
+            "Period": "Jan 2026 – May 2026",
             "Rebalance": "Weekly (Friday close)",
             "Transaction Cost": "30 bps round-trip",
             "Max Position": "25% single asset",
